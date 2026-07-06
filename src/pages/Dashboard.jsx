@@ -3,6 +3,7 @@ import { calendarDays, calendarPreview } from "../data/mockEvents";
 import { createEvent, deleteEvent, fetchEvents } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 
+
 const emptyEventForm = {
   title: "",
   description: "",
@@ -22,6 +23,7 @@ function sortEvents(events) {
 }
 
 function Dashboard() {
+const supabase = createClient();
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);

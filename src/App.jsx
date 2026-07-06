@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-
+import Calendar from "./pages/Calendar";
 function Placeholder({ title, text }) {
   return (
     <main className="dashboard">
@@ -50,10 +50,7 @@ function App() {
       </nav>
 
       {route === "calendar" ? (
-        <Placeholder
-          title="Calendar"
-          text="Your AI-managed calendar lands in a later sprint."
-        />
+         <Calendar />
       ) : route === "sources" ? (
         <Placeholder
           title="Sources"
