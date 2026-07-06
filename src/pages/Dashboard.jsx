@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import EventForm from "../components/EventForm";
 import { calendarDays, calendarPreview } from "../data/mockEvents";
 import {
   createEvent,
@@ -8,17 +9,6 @@ import {
 } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 
-
-const emptyEventForm = {
-  title: "",
-  description: "",
-  eventDate: "",
-  startTime: "",
-  endTime: "",
-  location: "",
-  source: "manual",
-};
-
 function sortEvents(events) {
   return [...events].sort((a, b) => {
     const aDate = `${a.sortDate ?? ""}T${a.sortTime ?? "00:00"}`;
@@ -27,25 +17,11 @@ function sortEvents(events) {
   });
 }
 
-function eventToForm(event) {
-  return {
-    title: event.title ?? "",
-    description: event.description ?? "",
-    eventDate: event.eventDate ?? "",
-    startTime: event.startTime ?? "",
-    endTime: event.endTime ?? "",
-    location: event.location ?? "",
-    source: event.source ?? "manual",
-  };
-}
-
 function Dashboard() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [eventForm, setEventForm] = useState(emptyEventForm);
-  const [formErrors, setFormErrors] = useState({});
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
   const [createError, setCreateError] = useState(null);
@@ -86,39 +62,6 @@ function Dashboard() {
     };
   }, []);
 
-  function handleEventField(field) {
-    return (event) => {
-      setEventForm((form) => ({ ...form, [field]: event.target.value }));
-      setFormErrors((errors) => ({ ...errors, [field]: null }));
-    };
-  }
-
-  function validateEventForm() {
-    const errors = {};
-
-    if (!eventForm.title.trim()) {
-      errors.title = "Event title is required.";
-    }
-
-    if (!eventForm.eventDate) {
-      errors.eventDate = "Date is required.";
-    }
-
-    if (!eventForm.startTime) {
-      errors.startTime = "Start time is required.";
-    }
-
-    if (
-      eventForm.startTime &&
-      eventForm.endTime &&
-      eventForm.endTime <= eventForm.startTime
-    ) {
-      errors.endTime = "End time must be after the start time.";
-    }
-
-    return errors;
-  }
-
   function clearEventMessages() {
     setCreateError(null);
     setCreateSuccess(null);
@@ -128,27 +71,11 @@ function Dashboard() {
     setDeleteSuccess(null);
   }
 
-  async function handleSubmitEvent(event) {
-    event.preventDefault();
-
-    const validationErrors = validateEventForm();
-    setFormErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
-      return;
-    }
-
+  async function handleSubmitEvent(eventInput) {
     setSavingEvent(true);
     clearEventMessages();
 
     try {
-      const eventInput = {
-        ...eventForm,
-        title: eventForm.title.trim(),
-        description: eventForm.description.trim(),
-        location: eventForm.location.trim(),
-      };
-
       if (eventToEdit) {
         const updatedEvent = await updateEvent(eventToEdit.id, eventInput);
         const formattedEvent = formatEventRow(updatedEvent);
@@ -172,8 +99,6 @@ function Dashboard() {
         setIsAddModalOpen(false);
       }
 
-      setEventForm(emptyEventForm);
-      setFormErrors({});
     } catch (submitEventError) {
       if (eventToEdit) {
         setUpdateError(submitEventError.message);
@@ -222,8 +147,6 @@ function Dashboard() {
             className="create-button"
             onClick={() => {
               clearEventMessages();
-              setEventForm(emptyEventForm);
-              setFormErrors({});
               setEventToEdit(null);
               setIsAddModalOpen(true);
             }}
@@ -315,8 +238,6 @@ function Dashboard() {
                           disabled={deletingEventId === event.id}
                           onClick={() => {
                             clearEventMessages();
-                            setFormErrors({});
-                            setEventForm(eventToForm(event));
                             setEventToEdit(event);
                             setIsAddModalOpen(false);
                           }}
@@ -355,116 +276,19 @@ function Dashboard() {
               <h2 id="add-event-title">
                 {eventToEdit ? eventToEdit.title : "Add Event"}
               </h2>
-              <form className="event-form" onSubmit={handleSubmitEvent}>
-                <label>
-                  Event title
-                  <input
-                    autoFocus
-                    onChange={handleEventField("title")}
-                    type="text"
-                    value={eventForm.title}
-                  />
-                  {formErrors.title && (
-                    <span className="field-error">{formErrors.title}</span>
-                  )}
-                </label>
-                <label>
-                  Description
-                  <textarea
-                    onChange={handleEventField("description")}
-                    rows={3}
-                    value={eventForm.description}
-                  />
-                </label>
-                <div className="event-form-row">
-                  <label>
-                    Date
-                    <input
-                      onChange={handleEventField("eventDate")}
-                      type="date"
-                      value={eventForm.eventDate}
-                    />
-                    {formErrors.eventDate && (
-                      <span className="field-error">{formErrors.eventDate}</span>
-                    )}
-                  </label>
-                  {!eventToEdit && (
-                    <label>
-                      Source type
-                      <select
-                        onChange={handleEventField("source")}
-                        value={eventForm.source}
-                      >
-                        <option value="manual">manual</option>
-                        <option value="community">community</option>
-                        <option value="instagram">instagram</option>
-                        <option value="discord">discord</option>
-                      </select>
-                    </label>
-                  )}
-                </div>
-                <div className="event-form-row">
-                  <label>
-                    Start time
-                    <input
-                      onChange={handleEventField("startTime")}
-                      type="time"
-                      value={eventForm.startTime}
-                    />
-                    {formErrors.startTime && (
-                      <span className="field-error">{formErrors.startTime}</span>
-                    )}
-                  </label>
-                  <label>
-                    End time
-                    <input
-                      onChange={handleEventField("endTime")}
-                      type="time"
-                      value={eventForm.endTime}
-                    />
-                    {formErrors.endTime && (
-                      <span className="field-error">{formErrors.endTime}</span>
-                    )}
-                  </label>
-                </div>
-                <label>
-                  Location
-                  <input
-                    onChange={handleEventField("location")}
-                    type="text"
-                    value={eventForm.location}
-                  />
-                </label>
-                {createError && (
-                  <p className="event-message event-message-error">{createError}</p>
-                )}
-                {updateError && (
-                  <p className="event-message event-message-error">{updateError}</p>
-                )}
-                <div className="confirm-actions">
-                  <button
-                    className="btn-secondary"
-                    disabled={savingEvent}
-                    onClick={() => {
-                      setIsAddModalOpen(false);
-                      setEventToEdit(null);
-                      setCreateError(null);
-                      setUpdateError(null);
-                      setFormErrors({});
-                    }}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button className="btn-primary" disabled={savingEvent} type="submit">
-                    {savingEvent
-                      ? "Saving..."
-                      : eventToEdit
-                        ? "Save changes"
-                        : "Save event"}
-                  </button>
-                </div>
-              </form>
+              <EventForm
+                error={eventToEdit ? updateError : createError}
+                initialData={eventToEdit}
+                isLoading={savingEvent}
+                mode={eventToEdit ? "edit" : "add"}
+                onCancel={() => {
+                  setIsAddModalOpen(false);
+                  setEventToEdit(null);
+                  setCreateError(null);
+                  setUpdateError(null);
+                }}
+                onSubmit={handleSubmitEvent}
+              />
             </div>
           </div>
         )}
