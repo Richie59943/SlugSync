@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 
 function Placeholder({ title, text }) {
   return (
@@ -42,6 +43,9 @@ function App() {
           <a href="#/sources" className={route === "sources" ? "is-active" : ""}>
             Sources
           </a>
+          <a href="#/profile" className={route === "profile" ? "is-active" : ""}>
+            Profile
+          </a>
         </div>
       </nav>
 
@@ -55,6 +59,8 @@ function App() {
           title="Sources"
           text="Discord and Instagram event sources land in a later sprint."
         />
+      ) : route === "profile" ? (
+        <Profile />
       ) : (
         <Dashboard />
       )}
