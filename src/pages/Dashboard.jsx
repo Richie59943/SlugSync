@@ -1,17 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { calendarDays, calendarPreview } from "../data/mockEvents";
+import { deleteEvent } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 import { supabase } from "../lib/supabaseClient";
 
 function Dashboard() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
+  const [deleteSuccess, setDeleteSuccess] = useState(null);
+  const [deletingEventId, setDeletingEventId] = useState(null);
+  const [eventToDelete, setEventToDelete] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadEvents() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!cancelled) {
+        setCurrentUserId(user?.id ?? null);
+      }
+
       const { data, error: fetchError } = await supabase
         .from("events")
         .select("*")
@@ -33,6 +47,27 @@ function Dashboard() {
       cancelled = true;
     };
   }, []);
+
+  async function confirmDeleteEvent() {
+    if (!eventToDelete) return;
+
+    setDeletingEventId(eventToDelete.id);
+    setDeleteError(null);
+    setDeleteSuccess(null);
+
+    try {
+      await deleteEvent(eventToDelete.id);
+      setUpcomingEvents((events) =>
+        events.filter((currentEvent) => currentEvent.id !== eventToDelete.id),
+      );
+      setDeleteSuccess(`Deleted "${eventToDelete.title}".`);
+      setEventToDelete(null);
+    } catch (deleteEventError) {
+      setDeleteError(deleteEventError.message);
+    } finally {
+      setDeletingEventId(null);
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -90,6 +125,12 @@ function Dashboard() {
               <span>{loading ? "Loading…" : "Live"}</span>
             </div>
             {error && <p className="empty-state">Couldn't load events: {error}</p>}
+            {deleteSuccess && (
+              <p className="event-message event-message-success">{deleteSuccess}</p>
+            )}
+            {deleteError && (
+              <p className="event-message event-message-error">{deleteError}</p>
+            )}
             {!error && !loading && upcomingEvents.length === 0 && (
               <p className="empty-state">No upcoming events yet.</p>
             )}
@@ -104,12 +145,71 @@ function Dashboard() {
                     <h3>{event.title}</h3>
                     <p>{event.location}</p>
                   </div>
-                  <span className="event-source">{event.source}</span>
+                  <div className="event-actions">
+                    <span className="event-source">{event.source}</span>
+                    {currentUserId === event.userId && (
+                      <button
+                        className="delete-event-button"
+                        disabled={deletingEventId === event.id}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setDeleteSuccess(null);
+                          setEventToDelete(event);
+                        }}
+                        type="button"
+                      >
+                        {deletingEventId === event.id ? "Deleting..." : "Delete"}
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           </article>
         </section>
+        {eventToDelete && (
+          <div
+            aria-labelledby="delete-event-title"
+            aria-modal="true"
+            className="modal-backdrop"
+            role="dialog"
+          >
+            <div className="confirm-dialog">
+              <p className="eyebrow">Delete event</p>
+              <h2 id="delete-event-title">{eventToDelete.title}</h2>
+              <p>
+                This will permanently remove the event from Supabase and your
+                dashboard.
+              </p>
+              {deleteError && (
+                <p className="event-message event-message-error">{deleteError}</p>
+              )}
+              <div className="confirm-actions">
+                <button
+                  className="btn-secondary"
+                  disabled={deletingEventId === eventToDelete.id}
+                  onClick={() => {
+                    setEventToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-danger"
+                  disabled={deletingEventId === eventToDelete.id}
+                  onClick={confirmDeleteEvent}
+                  type="button"
+                >
+                  {deletingEventId === eventToDelete.id
+                    ? "Deleting..."
+                    : "Confirm delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <section className="source-grid" aria-label="Future event sources">
           <article className="source-card source-instagram">
             <p className="eyebrow">Future source</p>
