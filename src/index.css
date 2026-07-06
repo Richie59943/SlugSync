@@ -392,8 +392,58 @@ select {
 }
 
 .confirm-actions .btn-secondary,
+.confirm-actions .btn-primary,
 .confirm-actions .btn-danger {
   width: auto;
+}
+
+.event-form-dialog {
+  max-width: 560px;
+  width: min(100%, 560px);
+}
+
+.event-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.event-form label {
+  color: #12233f;
+  display: grid;
+  font-size: 0.88rem;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.event-form input,
+.event-form textarea,
+.event-form select {
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  color: #1f2937;
+  outline: none;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.event-form input:focus,
+.event-form textarea:focus,
+.event-form select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.event-form-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .btn-danger {
