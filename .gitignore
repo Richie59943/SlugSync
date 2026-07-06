@@ -4,7 +4,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
@@ -16,6 +15,7 @@ coverage/
 # Environment
 .env
 .env.*
+!.env.example
 
 # System
 .DS_Store
