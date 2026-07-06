@@ -1,3 +1,39 @@
+export const calendarDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export const calendarPreview = [
+  { day: 1, hasEvent: false, isToday: false },
+  { day: 2, hasEvent: false, isToday: false },
+  { day: 3, hasEvent: false, isToday: false },
+  { day: 4, hasEvent: false, isToday: false },
+  { day: 5, hasEvent: false, isToday: false },
+  { day: 6, hasEvent: false, isToday: false },
+  { day: 7, hasEvent: false, isToday: false },
+  { day: 8, hasEvent: false, isToday: false },
+  { day: 9, hasEvent: true, isToday: false },
+  { day: 10, hasEvent: true, isToday: false },
+  { day: 11, hasEvent: true, isToday: false },
+  { day: 12, hasEvent: false, isToday: false },
+  { day: 13, hasEvent: true, isToday: false },
+  { day: 14, hasEvent: false, isToday: false },
+  { day: 15, hasEvent: true, isToday: false },
+  { day: 16, hasEvent: false, isToday: false },
+  { day: 17, hasEvent: false, isToday: false },
+  { day: 18, hasEvent: false, isToday: false },
+  { day: 19, hasEvent: false, isToday: false },
+  { day: 20, hasEvent: false, isToday: false },
+  { day: 21, hasEvent: false, isToday: false },
+  { day: 22, hasEvent: false, isToday: false },
+  { day: 23, hasEvent: false, isToday: false },
+  { day: 24, hasEvent: false, isToday: false },
+  { day: 25, hasEvent: false, isToday: false },
+  { day: 26, hasEvent: false, isToday: false },
+  { day: 27, hasEvent: false, isToday: false },
+  { day: 28, hasEvent: false, isToday: false },
+  { day: 29, hasEvent: false, isToday: false },
+  { day: 30, hasEvent: false, isToday: false },
+  { day: 31, hasEvent: false, isToday: false },
+];
+
 export const initialEvents = [
   {
     id: 1,

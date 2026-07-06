@@ -36,16 +36,6 @@ function Dashboard() {
 
   return (
     <div className="app-shell">
-      <nav className="navbar" aria-label="Main navigation">
-        <a className="brand" href="/">
-          SlugSync
-        </a>
-        <div className="nav-links">
-          <a href="/">Dashboard</a>
-          <a href="/">Calendar</a>
-          <a href="/">Sources</a>
-        </div>
-      </nav>
       <main className="dashboard">
         <section className="welcome-section" aria-labelledby="welcome-title">
           <div>
