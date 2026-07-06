@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { calendarDays, calendarPreview } from "../data/mockEvents";
-import { createEvent, deleteEvent, fetchEvents } from "../data/eventService";
+import {
+  createEvent,
+  deleteEvent,
+  fetchEvents,
+  updateEvent,
+} from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 
 
@@ -22,8 +27,19 @@ function sortEvents(events) {
   });
 }
 
+function eventToForm(event) {
+  return {
+    title: event.title ?? "",
+    description: event.description ?? "",
+    eventDate: event.eventDate ?? "",
+    startTime: event.startTime ?? "",
+    endTime: event.endTime ?? "",
+    location: event.location ?? "",
+    source: event.source ?? "manual",
+  };
+}
+
 function Dashboard() {
-const supabase = createClient();
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,10 +50,13 @@ const supabase = createClient();
   const [savingEvent, setSavingEvent] = useState(false);
   const [createError, setCreateError] = useState(null);
   const [createSuccess, setCreateSuccess] = useState(null);
+  const [updateError, setUpdateError] = useState(null);
+  const [updateSuccess, setUpdateSuccess] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(null);
   const [deletingEventId, setDeletingEventId] = useState(null);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [eventToEdit, setEventToEdit] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +119,16 @@ const supabase = createClient();
     return errors;
   }
 
-  async function handleCreateEvent(event) {
+  function clearEventMessages() {
+    setCreateError(null);
+    setCreateSuccess(null);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+    setDeleteError(null);
+    setDeleteSuccess(null);
+  }
+
+  async function handleSubmitEvent(event) {
     event.preventDefault();
 
     const validationErrors = validateEventForm();
@@ -111,28 +139,47 @@ const supabase = createClient();
     }
 
     setSavingEvent(true);
-    setCreateError(null);
-    setCreateSuccess(null);
-    setDeleteError(null);
-    setDeleteSuccess(null);
+    clearEventMessages();
 
     try {
-      const createdEvent = await createEvent({
+      const eventInput = {
         ...eventForm,
         title: eventForm.title.trim(),
         description: eventForm.description.trim(),
         location: eventForm.location.trim(),
-      });
-      const formattedEvent = formatEventRow(createdEvent);
+      };
 
-      setUpcomingEvents((events) => sortEvents([...events, formattedEvent]));
-      setCurrentUserId(createdEvent.user_id);
-      setCreateSuccess(`Created "${createdEvent.title}".`);
+      if (eventToEdit) {
+        const updatedEvent = await updateEvent(eventToEdit.id, eventInput);
+        const formattedEvent = formatEventRow(updatedEvent);
+
+        setUpcomingEvents((events) =>
+          sortEvents(
+            events.map((currentEvent) =>
+              currentEvent.id === formattedEvent.id ? formattedEvent : currentEvent,
+            ),
+          ),
+        );
+        setUpdateSuccess(`Updated "${updatedEvent.title}".`);
+        setEventToEdit(null);
+      } else {
+        const createdEvent = await createEvent(eventInput);
+        const formattedEvent = formatEventRow(createdEvent);
+
+        setUpcomingEvents((events) => sortEvents([...events, formattedEvent]));
+        setCurrentUserId(createdEvent.user_id);
+        setCreateSuccess(`Created "${createdEvent.title}".`);
+        setIsAddModalOpen(false);
+      }
+
       setEventForm(emptyEventForm);
       setFormErrors({});
-      setIsAddModalOpen(false);
-    } catch (createEventError) {
-      setCreateError(createEventError.message);
+    } catch (submitEventError) {
+      if (eventToEdit) {
+        setUpdateError(submitEventError.message);
+      } else {
+        setCreateError(submitEventError.message);
+      }
     } finally {
       setSavingEvent(false);
     }
@@ -174,10 +221,10 @@ const supabase = createClient();
           <button
             className="create-button"
             onClick={() => {
-              setCreateError(null);
-              setCreateSuccess(null);
-              setDeleteError(null);
-              setDeleteSuccess(null);
+              clearEventMessages();
+              setEventForm(emptyEventForm);
+              setFormErrors({});
+              setEventToEdit(null);
               setIsAddModalOpen(true);
             }}
             type="button"
@@ -234,6 +281,9 @@ const supabase = createClient();
             {createSuccess && (
               <p className="event-message event-message-success">{createSuccess}</p>
             )}
+            {updateSuccess && (
+              <p className="event-message event-message-success">{updateSuccess}</p>
+            )}
             {deleteError && (
               <p className="event-message event-message-error">{deleteError}</p>
             )}
@@ -259,18 +309,33 @@ const supabase = createClient();
                   <div className="event-actions">
                     <span className="event-source">{event.source}</span>
                     {currentUserId === event.userId && (
-                      <button
-                        className="delete-event-button"
-                        disabled={deletingEventId === event.id}
-                        onClick={() => {
-                          setDeleteError(null);
-                          setDeleteSuccess(null);
-                          setEventToDelete(event);
-                        }}
-                        type="button"
-                      >
-                        {deletingEventId === event.id ? "Deleting..." : "Delete"}
-                      </button>
+                      <>
+                        <button
+                          className="edit-event-button"
+                          disabled={deletingEventId === event.id}
+                          onClick={() => {
+                            clearEventMessages();
+                            setFormErrors({});
+                            setEventForm(eventToForm(event));
+                            setEventToEdit(event);
+                            setIsAddModalOpen(false);
+                          }}
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="delete-event-button"
+                          disabled={deletingEventId === event.id}
+                          onClick={() => {
+                            clearEventMessages();
+                            setEventToDelete(event);
+                          }}
+                          type="button"
+                        >
+                          {deletingEventId === event.id ? "Deleting..." : "Delete"}
+                        </button>
+                      </>
                     )}
                   </div>
                 </li>
@@ -278,7 +343,7 @@ const supabase = createClient();
             </ul>
           </article>
         </section>
-        {isAddModalOpen && (
+        {(isAddModalOpen || eventToEdit) && (
           <div
             aria-labelledby="add-event-title"
             aria-modal="true"
@@ -286,9 +351,11 @@ const supabase = createClient();
             role="dialog"
           >
             <div className="confirm-dialog event-form-dialog">
-              <p className="eyebrow">New event</p>
-              <h2 id="add-event-title">Add Event</h2>
-              <form className="event-form" onSubmit={handleCreateEvent}>
+              <p className="eyebrow">{eventToEdit ? "Edit event" : "New event"}</p>
+              <h2 id="add-event-title">
+                {eventToEdit ? eventToEdit.title : "Add Event"}
+              </h2>
+              <form className="event-form" onSubmit={handleSubmitEvent}>
                 <label>
                   Event title
                   <input
@@ -321,18 +388,20 @@ const supabase = createClient();
                       <span className="field-error">{formErrors.eventDate}</span>
                     )}
                   </label>
-                  <label>
-                    Source type
-                    <select
-                      onChange={handleEventField("source")}
-                      value={eventForm.source}
-                    >
-                      <option value="manual">manual</option>
-                      <option value="community">community</option>
-                      <option value="instagram">instagram</option>
-                      <option value="discord">discord</option>
-                    </select>
-                  </label>
+                  {!eventToEdit && (
+                    <label>
+                      Source type
+                      <select
+                        onChange={handleEventField("source")}
+                        value={eventForm.source}
+                      >
+                        <option value="manual">manual</option>
+                        <option value="community">community</option>
+                        <option value="instagram">instagram</option>
+                        <option value="discord">discord</option>
+                      </select>
+                    </label>
+                  )}
                 </div>
                 <div className="event-form-row">
                   <label>
@@ -369,13 +438,18 @@ const supabase = createClient();
                 {createError && (
                   <p className="event-message event-message-error">{createError}</p>
                 )}
+                {updateError && (
+                  <p className="event-message event-message-error">{updateError}</p>
+                )}
                 <div className="confirm-actions">
                   <button
                     className="btn-secondary"
                     disabled={savingEvent}
                     onClick={() => {
                       setIsAddModalOpen(false);
+                      setEventToEdit(null);
                       setCreateError(null);
+                      setUpdateError(null);
                       setFormErrors({});
                     }}
                     type="button"
@@ -383,7 +457,11 @@ const supabase = createClient();
                     Cancel
                   </button>
                   <button className="btn-primary" disabled={savingEvent} type="submit">
-                    {savingEvent ? "Saving..." : "Save event"}
+                    {savingEvent
+                      ? "Saving..."
+                      : eventToEdit
+                        ? "Save changes"
+                        : "Save event"}
                   </button>
                 </div>
               </form>

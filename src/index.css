@@ -323,6 +323,26 @@ select {
   padding: 5px 7px;
 }
 
+.edit-event-button {
+  background: #ffffff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  color: #1d4ed8;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 5px 7px;
+}
+
+.edit-event-button:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
+.edit-event-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .delete-event-button:hover:not(:disabled) {
   background: #fef2f2;
 }

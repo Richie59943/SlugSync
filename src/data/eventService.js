@@ -65,6 +65,47 @@ export async function createEvent(eventInput) {
   return data;
 }
 
+export async function updateEvent(eventId, eventInput) {
+  if (!eventId) {
+    throw new Error("Missing event id. The event could not be updated.");
+  }
+
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to edit an event.");
+  }
+
+  const payload = {
+    title: eventInput.title,
+    description: eventInput.description || null,
+    event_date: eventInput.eventDate,
+    event_time: eventInput.startTime,
+    event_end_time: eventInput.endTime || null,
+    location: eventInput.location || null,
+  };
+
+  const { data, error } = await supabase
+    .from("events")
+    .update(payload)
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Unable to update this event.");
+  }
+
+  if (!data) {
+    throw new Error(
+      "This event was not updated because it does not belong to your account.",
+    );
+  }
+
+  return data;
+}
+
 export async function deleteEvent(eventId) {
   if (!eventId) {
     throw new Error("Missing event id. The event could not be deleted.");
