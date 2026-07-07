@@ -4,6 +4,7 @@ import FilterNav from "../components/FilterNav";
 import { communityEvents } from "../data/mockEvents";
 import { createEvent, deleteEvent, fetchEvents, updateEvent } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
+import { createClient } from "../lib/supabase/client";
 
 const WHO_OPTIONS = [
   { value: "all", label: "All" },
@@ -58,6 +59,7 @@ function matchesWhen(event, when) {
 }
 
 function sortEvents(events) {
+const supabase = createClient();
   return [...events].sort((a, b) => {
     const aDate = `${a.sortDate ?? ""}T${a.sortTime ?? "00:00"}`;
     const bDate = `${b.sortDate ?? ""}T${b.sortTime ?? "00:00"}`;
