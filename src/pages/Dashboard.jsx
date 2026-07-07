@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { calendarDays, calendarPreview } from "../data/mockEvents";
 import { createEvent, deleteEvent, fetchEvents } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
+import { createClient } from "../lib/supabase/client";
 
 
 const emptyEventForm = {
@@ -15,6 +16,7 @@ const emptyEventForm = {
 };
 
 function sortEvents(events) {
+const supabase = createClient();
   return [...events].sort((a, b) => {
     const aDate = `${a.sortDate ?? ""}T${a.sortTime ?? "00:00"}`;
     const bDate = `${b.sortDate ?? ""}T${b.sortTime ?? "00:00"}`;
@@ -23,7 +25,6 @@ function sortEvents(events) {
 }
 
 function Dashboard() {
-const supabase = createClient();
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
