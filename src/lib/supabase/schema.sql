@@ -40,6 +40,13 @@ create policy "Users can create their own events"
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can edit their own events" on events;
+create policy "Users can edit their own events"
+  on events for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 drop policy if exists "Events can be deleted by everyone" on events;
 drop policy if exists "Users can delete their own events" on events;
 create policy "Users can delete their own events"

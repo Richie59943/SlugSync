@@ -1,19 +1,62 @@
 import React, { useEffect, useState } from "react";
-import { calendarDays, calendarPreview } from "../data/mockEvents";
-import { createEvent, deleteEvent, fetchEvents } from "../data/eventService";
+import EventForm from "../components/EventForm";
+import FilterNav from "../components/FilterNav";
+import { communityEvents } from "../data/mockEvents";
+import { createEvent, deleteEvent, fetchEvents, updateEvent } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 import { createClient } from "../lib/supabase/client";
 
+const WHO_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "community", label: "Community" },
+  { value: "personal", label: "Personal" },
+];
 
-const emptyEventForm = {
-  title: "",
-  description: "",
-  eventDate: "",
-  startTime: "",
-  endTime: "",
-  location: "",
-  source: "manual",
-};
+const WHEN_OPTIONS = [
+  { value: "all", label: "Any date" },
+  { value: "today", label: "Today" },
+  { value: "week", label: "This week" },
+];
+
+// ponytail: filter state lives in the query string so filtered views survive
+// refresh and can be shared; swap for a router if pages ever need params too.
+function useUrlFilter(key) {
+  const [value, setValue] = useState(
+    () => new URLSearchParams(window.location.search).get(key) || "all",
+  );
+
+  function update(next) {
+    setValue(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next === "all") params.delete(key);
+    else params.set(key, next);
+    const qs = params.toString();
+    history.replaceState(
+      null,
+      "",
+      window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash,
+    );
+  }
+
+  return [value, update];
+}
+
+function matchesWho(event, who) {
+  if (who === "community") return event.visibility === "public";
+  if (who === "personal") return event.visibility === "personal";
+  return true;
+}
+
+function matchesWhen(event, when) {
+  if (when === "all") return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const date = new Date(`${event.eventDate}T00:00`);
+  if (when === "today") return date.getTime() === today.getTime();
+  const weekEnd = new Date(today);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  return date >= today && date < weekEnd;
+}
 
 function sortEvents(events) {
 const supabase = createClient();
@@ -24,21 +67,29 @@ const supabase = createClient();
   });
 }
 
+// ponytail: personal events come from Supabase, community events are client-side
+// mocks until the backend adds a visibility column — swap communityEvents for a
+// second fetch when it lands.
+function toPersonalEvent(row) {
+  return { ...formatEventRow(row), visibility: "personal" };
+}
+
 function Dashboard() {
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
+
+  const [personalEvents, setPersonalEvents] = useState([]);
+
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [eventForm, setEventForm] = useState(emptyEventForm);
-  const [formErrors, setFormErrors] = useState({});
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [formError, setFormError] = useState(null);
   const [savingEvent, setSavingEvent] = useState(false);
-  const [createError, setCreateError] = useState(null);
-  const [createSuccess, setCreateSuccess] = useState(null);
-  const [deleteError, setDeleteError] = useState(null);
-  const [deleteSuccess, setDeleteSuccess] = useState(null);
-  const [deletingEventId, setDeletingEventId] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState(null);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [deletingEventId, setDeletingEventId] = useState(null);
+  const [who, setWho] = useUrlFilter("who");
+  const [when, setWhen] = useUrlFilter("when");
 
   useEffect(() => {
     let cancelled = false;
@@ -46,19 +97,17 @@ function Dashboard() {
     async function loadEvents() {
       try {
         const { events, user } = await fetchEvents();
-
         if (cancelled) return;
-
         setCurrentUserId(user?.id ?? null);
-        setUpcomingEvents(events.map(formatEventRow));
+        setPersonalEvents(events.map(toPersonalEvent));
       } catch (fetchError) {
-        if (!cancelled) {
-          setError(fetchError.message);
+        // ponytail: supabase reports "Auth session missing" when signed out —
+        // that's a normal state, not a load failure
+        if (!cancelled && !/auth session missing/i.test(fetchError.message)) {
+          setLoadError(fetchError.message);
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -68,72 +117,43 @@ function Dashboard() {
     };
   }, []);
 
-  function handleEventField(field) {
-    return (event) => {
-      setEventForm((form) => ({ ...form, [field]: event.target.value }));
-      setFormErrors((errors) => ({ ...errors, [field]: null }));
-    };
+  const visibleEvents = sortEvents([...personalEvents, ...communityEvents]).filter(
+    (event) => matchesWho(event, who) && matchesWhen(event, when),
+  );
+
+  function openModal(event = null) {
+    setMessage(null);
+    setFormError(null);
+    setEventToEdit(event);
+    setIsAddModalOpen(true);
   }
 
-  function validateEventForm() {
-    const errors = {};
-
-    if (!eventForm.title.trim()) {
-      errors.title = "Event title is required.";
-    }
-
-    if (!eventForm.eventDate) {
-      errors.eventDate = "Date is required.";
-    }
-
-    if (!eventForm.startTime) {
-      errors.startTime = "Start time is required.";
-    }
-
-    if (
-      eventForm.startTime &&
-      eventForm.endTime &&
-      eventForm.endTime <= eventForm.startTime
-    ) {
-      errors.endTime = "End time must be after the start time.";
-    }
-
-    return errors;
+  function closeModal() {
+    setIsAddModalOpen(false);
+    setEventToEdit(null);
+    setFormError(null);
   }
 
-  async function handleCreateEvent(event) {
-    event.preventDefault();
-
-    const validationErrors = validateEventForm();
-    setFormErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
-      return;
-    }
-
+  async function handleSubmitEvent(eventInput) {
     setSavingEvent(true);
-    setCreateError(null);
-    setCreateSuccess(null);
-    setDeleteError(null);
-    setDeleteSuccess(null);
+    setFormError(null);
 
     try {
-      const createdEvent = await createEvent({
-        ...eventForm,
-        title: eventForm.title.trim(),
-        description: eventForm.description.trim(),
-        location: eventForm.location.trim(),
-      });
-      const formattedEvent = formatEventRow(createdEvent);
-
-      setUpcomingEvents((events) => sortEvents([...events, formattedEvent]));
-      setCurrentUserId(createdEvent.user_id);
-      setCreateSuccess(`Created "${createdEvent.title}".`);
-      setEventForm(emptyEventForm);
-      setFormErrors({});
-      setIsAddModalOpen(false);
-    } catch (createEventError) {
-      setCreateError(createEventError.message);
+      if (eventToEdit) {
+        const updated = toPersonalEvent(await updateEvent(eventToEdit.id, eventInput));
+        setPersonalEvents((events) =>
+          events.map((event) => (event.id === updated.id ? updated : event)),
+        );
+        setMessage(`Updated "${updated.title}".`);
+      } else {
+        const created = await createEvent(eventInput);
+        setPersonalEvents((events) => [...events, toPersonalEvent(created)]);
+        setCurrentUserId(created.user_id);
+        setMessage(`Created "${created.title}".`);
+      }
+      closeModal();
+    } catch (submitError) {
+      setFormError(submitError.message);
     } finally {
       setSavingEvent(false);
     }
@@ -143,317 +163,194 @@ function Dashboard() {
     if (!eventToDelete) return;
 
     setDeletingEventId(eventToDelete.id);
-    setDeleteError(null);
-    setDeleteSuccess(null);
+    setMessage(null);
 
     try {
       await deleteEvent(eventToDelete.id);
-      setUpcomingEvents((events) =>
-        events.filter((currentEvent) => currentEvent.id !== eventToDelete.id),
+      setPersonalEvents((events) =>
+        events.filter((event) => event.id !== eventToDelete.id),
       );
-      setDeleteSuccess(`Deleted "${eventToDelete.title}".`);
+      setMessage(`Deleted "${eventToDelete.title}".`);
       setEventToDelete(null);
-    } catch (deleteEventError) {
-      setDeleteError(deleteEventError.message);
+    } catch (deleteError) {
+      setMessage(`Couldn't delete: ${deleteError.message}`);
     } finally {
       setDeletingEventId(null);
     }
   }
 
   return (
-    <div className="app-shell">
-      <main className="dashboard">
-        <section className="welcome-section" aria-labelledby="welcome-title">
-          <div>
-            <p className="eyebrow">Event calendar</p>
-            <h1 id="welcome-title">Welcome to your event dashboard.</h1>
-            <p>
-              Browse upcoming events happening around campus. Instagram and
-              Discord source cards are ready for future integrations.
+    <main className="dashboard">
+      <section className="welcome-section" aria-labelledby="welcome-title">
+        <div>
+          <p className="eyebrow">Santa Cruz, CA</p>
+          <h1 id="welcome-title">Your event dashboard.</h1>
+          <p>
+            Browse community events happening around Santa Cruz alongside your
+            personal schedule, or add one of your own.
+          </p>
+        </div>
+        <button className="create-button" onClick={() => openModal()} type="button">
+          + Add Event
+        </button>
+      </section>
+
+      <div className="filter-bar">
+        <FilterNav
+          label="Filter by feed"
+          options={WHO_OPTIONS}
+          value={who}
+          onChange={setWho}
+        />
+        <FilterNav
+          label="Filter by date"
+          options={WHEN_OPTIONS}
+          value={when}
+          onChange={setWhen}
+        />
+      </div>
+
+      {message && <p className="event-message event-message-success">{message}</p>}
+      {loadError && (
+        <p className="event-message event-message-error">
+          Couldn't load your events: {loadError}
+        </p>
+      )}
+      {!loading && !loadError && !currentUserId && (
+        <p className="event-message event-message-error">
+          Sign in to create and view your personal events.
+        </p>
+      )}
+
+      <section className="event-grid" aria-label="Events">
+        {loading && <p className="empty-state">Loading events…</p>}
+        {visibleEvents.map((event) => (
+          <article className="event-card" key={event.id}>
+            <div className="event-card-header">
+              <span
+                className={`badge badge-${
+                  event.visibility === "public" ? "public" : "personal"
+                }`}
+              >
+                {event.visibility === "public" ? "Public" : "Personal"}
+              </span>
+              <span className="event-source">{event.source}</span>
+            </div>
+            <h3>{event.title}</h3>
+            <p className="event-when">
+              {event.date} · {event.time}
             </p>
-          </div>
-          <button
-            className="create-button"
-            onClick={() => {
-              setCreateError(null);
-              setCreateSuccess(null);
-              setDeleteError(null);
-              setDeleteSuccess(null);
-              setIsAddModalOpen(true);
-            }}
-            type="button"
-          >
-            Add Event
-          </button>
-          <div
-            className="welcome-stat"
-            aria-label={`${upcomingEvents.length} events this week`}
-          >
-            <strong>{upcomingEvents.length}</strong>
-            <span>events this week</span>
-          </div>
-        </section>
-        <section className="dashboard-grid" aria-label="Dashboard overview">
-          <article className="panel calendar-preview">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Preview</p>
-                <h2>July calendar</h2>
-              </div>
-              <span>2026</span>
-            </div>
-            <div className="calendar-grid">
-              {calendarDays.map((day) => (
-                <div className="calendar-label" key={day}>
-                  {day}
-                </div>
-              ))}
-              {calendarPreview.map(({ day, hasEvent, isToday }) => (
-                <div
-                  className={`calendar-day${hasEvent ? " has-event" : ""}${
-                    isToday ? " is-today" : ""
-                  }`}
-                  key={day}
-                >
-                  <span>{day}</span>
-                </div>
-              ))}
-            </div>
-          </article>
-          <article className="panel upcoming-events">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Next up</p>
-                <h2>Upcoming events</h2>
-              </div>
-              <span>{loading ? "Loading…" : "Live"}</span>
-            </div>
-            {error && <p className="empty-state">Couldn't load events: {error}</p>}
-            {deleteSuccess && (
-              <p className="event-message event-message-success">{deleteSuccess}</p>
-            )}
-            {createSuccess && (
-              <p className="event-message event-message-success">{createSuccess}</p>
-            )}
-            {deleteError && (
-              <p className="event-message event-message-error">{deleteError}</p>
-            )}
-            {!currentUserId && !loading && !error && (
-              <p className="event-message event-message-error">
-                Sign in to create and view your events.
-              </p>
-            )}
-            {!error && !loading && upcomingEvents.length === 0 && (
-              <p className="empty-state">No upcoming events yet.</p>
-            )}
-            <ul className="event-list">
-              {upcomingEvents.map((event) => (
-                <li className="event-item" key={event.id}>
-                  <div className="event-date">
-                    <strong>{event.date}</strong>
-                    <span>{event.time}</span>
-                  </div>
-                  <div className="event-details">
-                    <h3>{event.title}</h3>
-                    <p>{event.location}</p>
-                  </div>
-                  <div className="event-actions">
-                    <span className="event-source">{event.source}</span>
-                    {currentUserId === event.userId && (
-                      <button
-                        className="delete-event-button"
-                        disabled={deletingEventId === event.id}
-                        onClick={() => {
-                          setDeleteError(null);
-                          setDeleteSuccess(null);
-                          setEventToDelete(event);
-                        }}
-                        type="button"
-                      >
-                        {deletingEventId === event.id ? "Deleting..." : "Delete"}
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </article>
-        </section>
-        {isAddModalOpen && (
-          <div
-            aria-labelledby="add-event-title"
-            aria-modal="true"
-            className="modal-backdrop"
-            role="dialog"
-          >
-            <div className="confirm-dialog event-form-dialog">
-              <p className="eyebrow">New event</p>
-              <h2 id="add-event-title">Add Event</h2>
-              <form className="event-form" onSubmit={handleCreateEvent}>
-                <label>
-                  Event title
-                  <input
-                    autoFocus
-                    onChange={handleEventField("title")}
-                    type="text"
-                    value={eventForm.title}
-                  />
-                  {formErrors.title && (
-                    <span className="field-error">{formErrors.title}</span>
-                  )}
-                </label>
-                <label>
-                  Description
-                  <textarea
-                    onChange={handleEventField("description")}
-                    rows={3}
-                    value={eventForm.description}
-                  />
-                </label>
-                <div className="event-form-row">
-                  <label>
-                    Date
-                    <input
-                      onChange={handleEventField("eventDate")}
-                      type="date"
-                      value={eventForm.eventDate}
-                    />
-                    {formErrors.eventDate && (
-                      <span className="field-error">{formErrors.eventDate}</span>
-                    )}
-                  </label>
-                  <label>
-                    Source type
-                    <select
-                      onChange={handleEventField("source")}
-                      value={eventForm.source}
-                    >
-                      <option value="manual">manual</option>
-                      <option value="community">community</option>
-                      <option value="instagram">instagram</option>
-                      <option value="discord">discord</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="event-form-row">
-                  <label>
-                    Start time
-                    <input
-                      onChange={handleEventField("startTime")}
-                      type="time"
-                      value={eventForm.startTime}
-                    />
-                    {formErrors.startTime && (
-                      <span className="field-error">{formErrors.startTime}</span>
-                    )}
-                  </label>
-                  <label>
-                    End time
-                    <input
-                      onChange={handleEventField("endTime")}
-                      type="time"
-                      value={eventForm.endTime}
-                    />
-                    {formErrors.endTime && (
-                      <span className="field-error">{formErrors.endTime}</span>
-                    )}
-                  </label>
-                </div>
-                <label>
-                  Location
-                  <input
-                    onChange={handleEventField("location")}
-                    type="text"
-                    value={eventForm.location}
-                  />
-                </label>
-                {createError && (
-                  <p className="event-message event-message-error">{createError}</p>
-                )}
-                <div className="confirm-actions">
-                  <button
-                    className="btn-secondary"
-                    disabled={savingEvent}
-                    onClick={() => {
-                      setIsAddModalOpen(false);
-                      setCreateError(null);
-                      setFormErrors({});
-                    }}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button className="btn-primary" disabled={savingEvent} type="submit">
-                    {savingEvent ? "Saving..." : "Save event"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-        {eventToDelete && (
-          <div
-            aria-labelledby="delete-event-title"
-            aria-modal="true"
-            className="modal-backdrop"
-            role="dialog"
-          >
-            <div className="confirm-dialog">
-              <p className="eyebrow">Delete event</p>
-              <h2 id="delete-event-title">{eventToDelete.title}</h2>
-              <p>
-                This will permanently remove the event from Supabase and your
-                dashboard.
-              </p>
-              {deleteError && (
-                <p className="event-message event-message-error">{deleteError}</p>
-              )}
-              <div className="confirm-actions">
+            <p>{event.location}</p>
+            {event.description && <p>{event.description}</p>}
+            {currentUserId && event.userId === currentUserId && (
+              <div className="event-actions">
                 <button
-                  className="btn-secondary"
-                  disabled={deletingEventId === eventToDelete.id}
+                  className="edit-event-button"
+                  disabled={deletingEventId === event.id}
+                  onClick={() => openModal(event)}
+                  type="button"
+                >
+                  Edit
+                </button>
+                <button
+                  className="delete-event-button"
+                  disabled={deletingEventId === event.id}
                   onClick={() => {
-                    setEventToDelete(null);
-                    setDeleteError(null);
+                    setMessage(null);
+                    setEventToDelete(event);
                   }}
                   type="button"
                 >
-                  Cancel
-                </button>
-                <button
-                  className="btn-danger"
-                  disabled={deletingEventId === eventToDelete.id}
-                  onClick={confirmDeleteEvent}
-                  type="button"
-                >
-                  {deletingEventId === eventToDelete.id
-                    ? "Deleting..."
-                    : "Confirm delete"}
+                  {deletingEventId === event.id ? "Deleting..." : "Delete"}
                 </button>
               </div>
+            )}
+          </article>
+        ))}
+        {!loading && visibleEvents.length === 0 && (
+          <p className="empty-state">No events match these filters.</p>
+        )}
+      </section>
+
+      <section className="source-grid" aria-label="Future event sources">
+        <article className="source-card source-instagram">
+          <p className="eyebrow">Future source</p>
+          <h2>Instagram events</h2>
+          <p>
+            Placeholder for events discovered from posts, stories, or profile
+            activity once source integrations are added.
+          </p>
+        </article>
+        <article className="source-card source-discord">
+          <p className="eyebrow">Future source</p>
+          <h2>Discord events</h2>
+          <p>
+            Placeholder for events collected from servers, channels, and
+            community announcements in a later phase.
+          </p>
+        </article>
+      </section>
+
+      {isAddModalOpen && (
+        <div
+          aria-labelledby="add-event-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog event-form-dialog">
+            <p className="eyebrow">{eventToEdit ? "Edit event" : "New event"}</p>
+            <h2 id="add-event-title">
+              {eventToEdit ? eventToEdit.title : "Add Event"}
+            </h2>
+            <EventForm
+              error={formError}
+              initialData={eventToEdit}
+              isLoading={savingEvent}
+              mode={eventToEdit ? "edit" : "add"}
+              onCancel={closeModal}
+              onSubmit={handleSubmitEvent}
+            />
+          </div>
+        </div>
+      )}
+
+      {eventToDelete && (
+        <div
+          aria-labelledby="delete-event-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <p className="eyebrow">Delete event</p>
+            <h2 id="delete-event-title">{eventToDelete.title}</h2>
+            <p>This will permanently remove the event from your schedule.</p>
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                disabled={deletingEventId === eventToDelete.id}
+                onClick={() => setEventToDelete(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                disabled={deletingEventId === eventToDelete.id}
+                onClick={confirmDeleteEvent}
+                type="button"
+              >
+                {deletingEventId === eventToDelete.id
+                  ? "Deleting..."
+                  : "Confirm delete"}
+              </button>
             </div>
           </div>
-        )}
-        <section className="source-grid" aria-label="Future event sources">
-          <article className="source-card source-instagram">
-            <p className="eyebrow">Future source</p>
-            <h2>Instagram events</h2>
-            <p>
-              Placeholder for events discovered from posts, stories, or profile
-              activity once source integrations are added.
-            </p>
-          </article>
-          <article className="source-card source-discord">
-            <p className="eyebrow">Future source</p>
-            <h2>Discord events</h2>
-            <p>
-              Placeholder for events collected from servers, channels, and
-              community announcements in a later phase.
-            </p>
-          </article>
-        </section>
-      </main>
-    </div>
+        </div>
+      )}
+    </main>
   );
 }
+
 export default Dashboard;
