@@ -1,6 +1,11 @@
 // ponytail: community events are mocked client-side until the events table
 // gets a visibility column + public-read RLS policy (backend team's call).
 // Shape matches formatEventRow output so the dashboard treats both the same.
+//
+// category/club/class_code below are temporary demo fields for Sprint 2.4
+// preference filtering. They aren't real columns yet — see
+// src/lib/supabase/schema.sql for the optional migration that would add them
+// to the real events table.
 export const communityEvents = [
   {
     id: "community-1",
@@ -15,6 +20,9 @@ export const communityEvents = [
     description: "Galleries and shops open late with local artists.",
     source: "Community",
     visibility: "public",
+    category: "Arts & Culture",
+    club: null,
+    class_code: null,
   },
   {
     id: "community-2",
@@ -29,6 +37,9 @@ export const communityEvents = [
     description: "Casual games, all skill levels welcome.",
     source: "Community",
     visibility: "public",
+    category: "Sports & Recreation",
+    club: "Slug Volleyball Club",
+    class_code: null,
   },
   {
     id: "community-3",
@@ -43,6 +54,9 @@ export const communityEvents = [
     description: "Weekly farmers market with local produce and food trucks.",
     source: "Community",
     visibility: "public",
+    category: "Community",
+    club: null,
+    class_code: null,
   },
   {
     id: "community-4",
@@ -57,5 +71,42 @@ export const communityEvents = [
     description: "Music, comedy, and poetry — sign-ups at the door.",
     source: "Community",
     visibility: "public",
+    category: "Arts & Culture",
+    club: "UCSC Music Collective",
+    class_code: null,
+  },
+  {
+    id: "community-5",
+    userId: null,
+    title: "CSE Study Jam: Data Structures",
+    date: "Jul 14",
+    time: "6:00 PM",
+    eventDate: "2026-07-14",
+    sortDate: "2026-07-14",
+    sortTime: "18:00",
+    location: "Baskin Engineering",
+    description: "Peer-led review session ahead of the midterm.",
+    source: "Community",
+    visibility: "public",
+    category: "Academic",
+    club: "ACM at UCSC",
+    class_code: "CSE 101",
+  },
+  {
+    id: "community-6",
+    userId: null,
+    title: "Robotics Club Build Night",
+    date: "Jul 16",
+    time: "7:00 PM",
+    eventDate: "2026-07-16",
+    sortDate: "2026-07-16",
+    sortTime: "19:00",
+    location: "Engineering 2, Room 180",
+    description: "Weekly build session, all members welcome.",
+    source: "Community",
+    visibility: "public",
+    category: "Club",
+    club: "Robotics Club",
+    class_code: null,
   },
 ];

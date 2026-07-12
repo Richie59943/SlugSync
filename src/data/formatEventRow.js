@@ -26,5 +26,11 @@ export function formatEventRow(row) {
     description: row.description,
     location: row.location,
     source: row.source,
+    // Not in the real events table yet — undefined until the optional
+    // migration in src/lib/supabase/schema.sql lands. matchesPreferences
+    // treats missing fields as "no match" rather than crashing.
+    category: row.category ?? null,
+    club: row.club ?? null,
+    class_code: row.class_code ?? null,
   };
 }

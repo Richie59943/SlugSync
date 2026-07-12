@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import EventForm from "../components/EventForm";
 import FilterNav from "../components/FilterNav";
+import PreferencesFilter from "../components/PreferencesFilter";
 import { communityEvents } from "../data/mockEvents";
 import { createEvent, deleteEvent, fetchEvents, updateEvent } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 import { createClient } from "../lib/supabase/client";
+import { matchesPreferences } from "../data/matchesPreferences";
+import { useUserPreferences } from "../hooks/useUserPreferences";
 
 const WHO_OPTIONS = [
   { value: "all", label: "All" },
@@ -90,6 +93,13 @@ function Dashboard() {
   const [deletingEventId, setDeletingEventId] = useState(null);
   const [who, setWho] = useUrlFilter("who");
   const [when, setWhen] = useUrlFilter("when");
+  const {
+    preferences,
+    status: preferencesStatus,
+    error: preferencesError,
+    savePreferences,
+    clearPreferences,
+  } = useUserPreferences();
 
   useEffect(() => {
     let cancelled = false;
@@ -117,8 +127,13 @@ function Dashboard() {
     };
   }, []);
 
-  const visibleEvents = sortEvents([...personalEvents, ...communityEvents]).filter(
-    (event) => matchesWho(event, who) && matchesWhen(event, when),
+  const allEvents = [...personalEvents, ...communityEvents];
+
+  const visibleEvents = sortEvents(allEvents).filter(
+    (event) =>
+      matchesWho(event, who) &&
+      matchesWhen(event, when) &&
+      matchesPreferences(event, preferences),
   );
 
   function openModal(event = null) {
@@ -208,6 +223,15 @@ function Dashboard() {
           value={when}
           onChange={setWhen}
         />
+        <PreferencesFilter
+          error={preferencesError}
+          events={allEvents}
+          onClear={clearPreferences}
+          onSave={savePreferences}
+          preferences={preferences}
+          status={preferencesStatus}
+          userId={currentUserId}
+        />
       </div>
 
       {message && <p className="event-message event-message-success">{message}</p>}
@@ -268,7 +292,7 @@ function Dashboard() {
           </article>
         ))}
         {!loading && visibleEvents.length === 0 && (
-          <p className="empty-state">No events match these filters.</p>
+          <p className="empty-state">No events match your current filters.</p>
         )}
       </section>
 
