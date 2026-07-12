@@ -34,6 +34,23 @@ export async function fetchEvents() {
   return { events: data ?? [], user };
 }
 
+// Public events, no auth needed — RLS (events_visibility.sql) limits reads to
+// visibility = 'public'. Errors if that migration hasn't run; callers fall back.
+export async function fetchCommunityEvents() {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("visibility", "public")
+    .order("event_date", { ascending: true })
+    .order("event_time", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message || "Unable to load community events.");
+  }
+
+  return data ?? [];
+}
+
 export async function createEvent(eventInput) {
   const user = await getCurrentUser();
 
