@@ -3,7 +3,13 @@ import EventForm from "../components/EventForm";
 import FilterNav from "../components/FilterNav";
 import PreferencesFilter from "../components/PreferencesFilter";
 import { communityEvents } from "../data/mockEvents";
-import { createEvent, deleteEvent, fetchEvents, updateEvent } from "../data/eventService";
+import {
+  createEvent,
+  deleteEvent,
+  fetchCommunityEvents,
+  fetchEvents,
+  updateEvent,
+} from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 import { createClient } from "../lib/supabase/client";
 import { matchesPreferences } from "../data/matchesPreferences";
@@ -70,16 +76,18 @@ const supabase = createClient();
   });
 }
 
-// ponytail: personal events come from Supabase, community events are client-side
-// mocks until the backend adds a visibility column — swap communityEvents for a
-// second fetch when it lands.
 function toPersonalEvent(row) {
   return { ...formatEventRow(row), visibility: "personal" };
+}
+
+function toCommunityEvent(row) {
+  return { ...formatEventRow(row), visibility: "public" };
 }
 
 function Dashboard() {
 
   const [personalEvents, setPersonalEvents] = useState([]);
+  const [publicEvents, setPublicEvents] = useState([]);
 
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -122,12 +130,23 @@ function Dashboard() {
     }
 
     loadEvents();
+
+    // ponytail: mocks are only the fallback for Supabase projects that haven't
+    // run events_visibility.sql yet — delete mockEvents.js once everyone has.
+    fetchCommunityEvents()
+      .then((rows) => {
+        if (!cancelled) setPublicEvents(rows.map(toCommunityEvent));
+      })
+      .catch(() => {
+        if (!cancelled) setPublicEvents(communityEvents);
+      });
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const allEvents = [...personalEvents, ...communityEvents];
+  const allEvents = [...personalEvents, ...publicEvents];
 
   const visibleEvents = sortEvents(allEvents).filter(
     (event) =>
