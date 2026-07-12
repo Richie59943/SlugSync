@@ -210,13 +210,24 @@ function Dashboard() {
         </button>
       </section>
 
+      {/* ponytail: tabs reuse the existing `who` url-filter state, so the
+          selected view still survives refresh and shareable links */}
+      <div className="view-tabs" role="tablist" aria-label="Event view">
+        {WHO_OPTIONS.map((opt) => (
+          <button
+            aria-selected={who === opt.value}
+            className={`view-tab${who === opt.value ? " is-active" : ""}`}
+            key={opt.value}
+            onClick={() => setWho(opt.value)}
+            role="tab"
+            type="button"
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <div className="filter-bar">
-        <FilterNav
-          label="Filter by feed"
-          options={WHO_OPTIONS}
-          value={who}
-          onChange={setWho}
-        />
         <FilterNav
           label="Filter by date"
           options={WHEN_OPTIONS}
