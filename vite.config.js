@@ -10,4 +10,14 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      "/api/ucsc-events": {
+        target: "https://events.ucsc.edu",
+        changeOrigin: true,
+        rewrite: (path) =>
+          path.replace(/^\/api\/ucsc-events/, "/wp-json/tribe/events/v1/events"),
+      },
+    },
+  },
 });

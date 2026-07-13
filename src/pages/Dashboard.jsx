@@ -11,6 +11,7 @@ import {
   updateEvent,
 } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
+import { fetchUcscEvents } from "../data/ucscEvents";
 import { createClient } from "../lib/supabase/client";
 import { matchesPreferences } from "../data/matchesPreferences";
 import { useUserPreferences } from "../hooks/useUserPreferences";
@@ -88,6 +89,8 @@ function Dashboard() {
 
   const [personalEvents, setPersonalEvents] = useState([]);
   const [publicEvents, setPublicEvents] = useState([]);
+  const [ucscEvents, setUcscEvents] = useState([]);
+  const [ucscError, setUcscError] = useState(null);
 
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -146,7 +149,25 @@ function Dashboard() {
     };
   }, []);
 
-  const allEvents = [...personalEvents, ...publicEvents];
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUcscEvents() {
+      try {
+        const events = await fetchUcscEvents();
+        if (!cancelled) setUcscEvents(events);
+      } catch (fetchError) {
+        if (!cancelled) setUcscError(fetchError.message);
+      }
+    }
+
+    loadUcscEvents();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const allEvents = [...personalEvents, ...publicEvents, ...ucscEvents];
 
   const visibleEvents = sortEvents(allEvents).filter(
     (event) =>
@@ -268,6 +289,11 @@ function Dashboard() {
       {loadError && (
         <p className="event-message event-message-error">
           Couldn't load your events: {loadError}
+        </p>
+      )}
+      {ucscError && (
+        <p className="event-message event-message-error">
+          Couldn't load UCSC events: {ucscError}
         </p>
       )}
       {!loading && !loadError && !currentUserId && (
