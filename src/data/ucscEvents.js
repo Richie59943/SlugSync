@@ -36,6 +36,12 @@ export function normalizeUcscEvent(raw) {
   const sortTime = `${String(start.getHours()).padStart(2, "0")}:${String(
     start.getMinutes(),
   ).padStart(2, "0")}`;
+  const sortEndTime =
+    end && end.getTime() !== start.getTime()
+      ? `${String(end.getHours()).padStart(2, "0")}:${String(
+          end.getMinutes(),
+        ).padStart(2, "0")}`
+      : null;
 
   const startLabel = start.toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -55,6 +61,7 @@ export function normalizeUcscEvent(raw) {
     eventDate: sortDate,
     sortDate,
     sortTime,
+    sortEndTime,
     location: formatVenue(raw.venue),
     description: stripHtml(raw.description).slice(0, 240),
     source: "UCSC Events",

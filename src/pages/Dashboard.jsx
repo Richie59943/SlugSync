@@ -85,6 +85,20 @@ function toCommunityEvent(row) {
   return { ...formatEventRow(row), visibility: "public" };
 }
 
+// Builds a createEvent() payload from a detected/community event so it can
+// be copied into the signed-in user's own schedule.
+function toScheduleInput(event) {
+  return {
+    title: event.title,
+    description: event.description || `Imported from ${event.source}.`,
+    eventDate: event.eventDate,
+    startTime: event.sortTime,
+    endTime: event.sortEndTime || null,
+    location: event.location,
+    source: event.source,
+  };
+}
+
 function Dashboard() {
 
   const [personalEvents, setPersonalEvents] = useState([]);
@@ -102,6 +116,8 @@ function Dashboard() {
   const [eventToEdit, setEventToEdit] = useState(null);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [deletingEventId, setDeletingEventId] = useState(null);
+  const [addingEventId, setAddingEventId] = useState(null);
+  const [signInPromptEvent, setSignInPromptEvent] = useState(null);
   const [who, setWho] = useUrlFilter("who");
   const [when, setWhen] = useUrlFilter("when");
   const {
@@ -211,6 +227,35 @@ function Dashboard() {
       setFormError(submitError.message);
     } finally {
       setSavingEvent(false);
+    }
+  }
+
+  function isAlreadyScheduled(event) {
+    return personalEvents.some(
+      (personal) =>
+        personal.title === event.title && personal.eventDate === event.eventDate,
+    );
+  }
+
+  async function handleAddToSchedule(event) {
+    if (!currentUserId) {
+      setMessage(null);
+      setSignInPromptEvent(event);
+      return;
+    }
+
+    setMessage(null);
+    setAddingEventId(event.id);
+
+    try {
+      const created = await createEvent(toScheduleInput(event));
+      setPersonalEvents((events) => [...events, toPersonalEvent(created)]);
+      setCurrentUserId(created.user_id);
+      setMessage(`Added "${created.title}" to your schedule.`);
+    } catch (addError) {
+      setMessage(`Couldn't add to your schedule: ${addError.message}`);
+    } finally {
+      setAddingEventId(null);
     }
   }
 
@@ -345,6 +390,25 @@ function Dashboard() {
                 </button>
               </div>
             )}
+            {!(currentUserId && event.userId === currentUserId) && (
+              <div className="event-actions">
+                <button
+                  className="add-to-schedule-button"
+                  disabled={
+                    addingEventId === event.id ||
+                    (currentUserId && isAlreadyScheduled(event))
+                  }
+                  onClick={() => handleAddToSchedule(event)}
+                  type="button"
+                >
+                  {currentUserId && isAlreadyScheduled(event)
+                    ? "Added to schedule ✓"
+                    : addingEventId === event.id
+                      ? "Adding..."
+                      : "+ Add to My Schedule"}
+                </button>
+              </div>
+            )}
           </article>
         ))}
         {!loading && visibleEvents.length === 0 && (
@@ -424,6 +488,40 @@ function Dashboard() {
                 {deletingEventId === eventToDelete.id
                   ? "Deleting..."
                   : "Confirm delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {signInPromptEvent && (
+        <div
+          aria-labelledby="sign-in-prompt-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <p className="eyebrow">Sign in required</p>
+            <h2 id="sign-in-prompt-title">{signInPromptEvent.title}</h2>
+            <p>Sign in to add this event to your personal schedule.</p>
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setSignInPromptEvent(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  window.location.hash = "#/profile";
+                  setSignInPromptEvent(null);
+                }}
+                type="button"
+              >
+                Sign In
               </button>
             </div>
           </div>

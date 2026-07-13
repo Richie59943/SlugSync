@@ -435,6 +435,26 @@ select {
   opacity: 0.65;
 }
 
+.add-to-schedule-button {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  color: #166534;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 5px 7px;
+}
+
+.add-to-schedule-button:hover:not(:disabled) {
+  background: #d1fae5;
+}
+
+.add-to-schedule-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .event-message {
   border-radius: 8px;
   font-size: 0.875rem;
