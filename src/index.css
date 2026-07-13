@@ -322,12 +322,12 @@ select {
   padding: 5px 7px;
 }
 
-.badge-public {
+.badge-community {
   background: #ecfdf5;
   color: #166534;
 }
 
-.badge-personal {
+.badge-private {
   background: #dbeafe;
   color: #1d4ed8;
 }
@@ -563,10 +563,94 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.visibility-fieldset {
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+}
+
+.visibility-fieldset legend {
+  color: #12233f;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 0 4px;
+}
+
+.visibility-options {
+  display: grid;
+  gap: 10px;
+}
+
+.event-form .visibility-option {
+  align-items: flex-start;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 12px;
+}
+
+.event-form .visibility-option:has(input:checked) {
+  background: #eef2ff;
+  border-color: #4f46e5;
+}
+
+.visibility-option input {
+  margin-top: 3px;
+  width: auto;
+}
+
+.visibility-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.visibility-option small {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .field-error {
   color: #b91c1c;
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+.calendar-panel {
+  background: #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(26, 39, 64, 0.08);
+  padding: 24px;
+}
+
+.calendar-delete-button {
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-top: 12px;
+  padding: 10px 14px;
+  width: 100%;
+}
+
+.calendar-delete-button:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.calendar-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .btn-danger {
@@ -1153,6 +1237,14 @@ select {
   .welcome-section,
   .source-card {
     padding: 18px;
+  }
+
+  .calendar-panel {
+    padding: 14px;
+  }
+
+  .event-form-row {
+    grid-template-columns: 1fr;
   }
 
   .profile-row {

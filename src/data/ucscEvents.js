@@ -66,7 +66,7 @@ export function normalizeUcscEvent(raw) {
     description: stripHtml(raw.description).slice(0, 240),
     source: "UCSC Events",
     sourceUrl: raw.url ?? null,
-    visibility: "public",
+    visibility: "community",
   };
 }
 

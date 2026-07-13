@@ -1,5 +1,5 @@
 // ponytail: community events are mocked client-side until the events table
-// gets a visibility column + public-read RLS policy (backend team's call).
+// gets a visibility column + community-read RLS policy (backend team's call).
 // Shape matches formatEventRow output so the dashboard treats both the same.
 //
 // category/club/class_code below are temporary demo fields for Sprint 2.4
@@ -19,7 +19,7 @@ export const communityEvents = [
     location: "Downtown Santa Cruz",
     description: "Galleries and shops open late with local artists.",
     source: "Community",
-    visibility: "public",
+    visibility: "community",
     category: "Arts & Culture",
     club: null,
     class_code: null,
@@ -36,7 +36,7 @@ export const communityEvents = [
     location: "Seabright Beach",
     description: "Casual games, all skill levels welcome.",
     source: "Community",
-    visibility: "public",
+    visibility: "community",
     category: "Sports & Recreation",
     club: "Slug Volleyball Club",
     class_code: null,
@@ -53,7 +53,7 @@ export const communityEvents = [
     location: "Cathcart Street",
     description: "Weekly farmers market with local produce and food trucks.",
     source: "Community",
-    visibility: "public",
+    visibility: "community",
     category: "Community",
     club: null,
     class_code: null,
@@ -70,7 +70,7 @@ export const communityEvents = [
     location: "Stevenson Event Center, UCSC",
     description: "Music, comedy, and poetry — sign-ups at the door.",
     source: "Community",
-    visibility: "public",
+    visibility: "community",
     category: "Arts & Culture",
     club: "UCSC Music Collective",
     class_code: null,
@@ -87,7 +87,7 @@ export const communityEvents = [
     location: "Baskin Engineering",
     description: "Peer-led review session ahead of the midterm.",
     source: "Community",
-    visibility: "public",
+    visibility: "community",
     category: "Academic",
     club: "ACM at UCSC",
     class_code: "CSE 101",
@@ -104,7 +104,7 @@ export const communityEvents = [
     location: "Engineering 2, Room 180",
     description: "Weekly build session, all members welcome.",
     source: "Community",
-    visibility: "public",
+    visibility: "community",
     category: "Club",
     club: "Robotics Club",
     class_code: null,

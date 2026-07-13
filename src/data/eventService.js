@@ -1,4 +1,8 @@
 import { supabase } from "../lib/supabaseClient";
+import {
+  EVENT_VISIBILITY,
+  normalizeEventVisibility,
+} from "./eventVisibility";
 
 export async function getCurrentUser() {
   const {
@@ -34,13 +38,13 @@ export async function fetchEvents() {
   return { events: data ?? [], user };
 }
 
-// Public events, no auth needed — RLS (events_visibility.sql) limits reads to
-// visibility = 'public'. Errors if that migration hasn't run; callers fall back.
+// Community event reads are still enforced by RLS. Private events only come
+// through fetchEvents(), scoped to the authenticated owner.
 export async function fetchCommunityEvents() {
   const { data, error } = await supabase
     .from("events")
     .select("*")
-    .eq("visibility", "public")
+    .eq("visibility", EVENT_VISIBILITY.COMMUNITY)
     .order("event_date", { ascending: true })
     .order("event_time", { ascending: true });
 
@@ -67,6 +71,7 @@ export async function createEvent(eventInput) {
     event_end_time: eventInput.endTime || null,
     location: eventInput.location || null,
     source: eventInput.source || "manual",
+    visibility: normalizeEventVisibility(eventInput.visibility),
   };
 
   const { data, error } = await supabase
@@ -100,6 +105,7 @@ export async function updateEvent(eventId, eventInput) {
     event_time: eventInput.startTime,
     event_end_time: eventInput.endTime || null,
     location: eventInput.location || null,
+    visibility: normalizeEventVisibility(eventInput.visibility),
   };
 
   const { data, error } = await supabase

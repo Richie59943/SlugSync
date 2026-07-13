@@ -1,4 +1,9 @@
 import React, { useEffect, useState } from "react";
+import {
+  EVENT_VISIBILITY,
+  EVENT_VISIBILITY_OPTIONS,
+  normalizeEventVisibility,
+} from "../data/eventVisibility";
 
 const emptyForm = {
   title: "",
@@ -7,6 +12,7 @@ const emptyForm = {
   startTime: "",
   endTime: "",
   location: "",
+  visibility: EVENT_VISIBILITY.PRIVATE,
 };
 
 function normalizeFormData(data) {
@@ -17,6 +23,7 @@ function normalizeFormData(data) {
     startTime: data?.startTime ?? "",
     endTime: data?.endTime ?? "",
     location: data?.location ?? "",
+    visibility: normalizeEventVisibility(data?.visibility),
   };
 }
 
@@ -147,6 +154,26 @@ function EventForm({
           />
         </label>
       </div>
+      <fieldset className="visibility-fieldset">
+        <legend>Event visibility</legend>
+        <div className="visibility-options">
+          {EVENT_VISIBILITY_OPTIONS.map((option) => (
+            <label className="visibility-option" key={option.value}>
+              <input
+                checked={form.visibility === option.value}
+                name="event-visibility"
+                onChange={handleField("visibility")}
+                type="radio"
+                value={option.value}
+              />
+              <span>
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       {error && <p className="event-message event-message-error">{error}</p>}
       <div className="confirm-actions">
         <button

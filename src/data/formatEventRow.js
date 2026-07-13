@@ -1,3 +1,5 @@
+import { normalizeEventVisibility } from "./eventVisibility";
+
 export function formatEventRow(row) {
   const dateObj = new Date(`${row.event_date}T${row.event_time}`);
   const endDateObj = row.event_end_time
@@ -26,6 +28,7 @@ export function formatEventRow(row) {
     description: row.description,
     location: row.location,
     source: row.source,
+    visibility: normalizeEventVisibility(row.visibility),
     // Not in the real events table yet — undefined until the optional
     // migration in src/lib/supabase/schema.sql lands. matchesPreferences
     // treats missing fields as "no match" rather than crashing.

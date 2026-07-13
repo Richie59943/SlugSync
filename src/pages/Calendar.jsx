@@ -1,112 +1,151 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import EventForm from "../components/EventForm";
+import {
+  createEvent,
+  deleteEvent,
+  fetchEvents,
+  updateEvent,
+} from "../data/eventService";
+import { EVENT_VISIBILITY } from "../data/eventVisibility";
+import { formatEventRow } from "../data/formatEventRow";
 
-const initialEvents = [
-  { id: "1", title: "Surf club", date: "2026-07-03", color: "#5DCAA5" },
-  { id: "2", title: "Study group", date: "2026-07-07", color: "#F0997B" },
-  { id: "3", title: "AI pick: farmers market", date: "2026-07-08", color: "#EF9F27" },
-  { id: "4", title: "Beach cleanup", date: "2026-07-15", color: "#5DCAA5" },
-];
+function toCalendarEvent(event) {
+  const hasTime = Boolean(event.startTime);
+  const calendarEvent = {
+    id: event.id,
+    title: event.title,
+    color:
+      event.visibility === EVENT_VISIBILITY.COMMUNITY ? "#0f766e" : "#4f46e5",
+    extendedProps: {
+      eventData: event,
+      location: event.location,
+      visibility: event.visibility,
+    },
+  };
 
-const emptyForm = {
-  id: null,
-  title: "",
-  date: "",
-  startTime: "",
-  endTime: "",
-  location: "",
-};
-
-function Calendar() {
-  const [events, setEvents] = useState(initialEvents);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [formError, setFormError] = useState("");
-
-  const isEditing = form.id !== null;
-
-  function handleField(field) {
-    return (e) => {
-      setForm((f) => ({ ...f, [field]: e.target.value }));
-      setFormError("");
-    };
+  if (hasTime) {
+    calendarEvent.start = `${event.eventDate}T${event.startTime}`;
+    if (event.endTime) {
+      calendarEvent.end = `${event.eventDate}T${event.endTime}`;
+    }
+  } else {
+    calendarEvent.date = event.eventDate;
   }
 
+  return calendarEvent;
+}
+
+function Calendar() {
+  const [events, setEvents] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState(null);
+  const [eventToDelete, setEventToDelete] = useState(null);
+  const [deletingEventId, setDeletingEventId] = useState(null);
+
+  const calendarEvents = useMemo(() => events.map(toCalendarEvent), [events]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEvents() {
+      setLoading(true);
+      setLoadError(null);
+
+      try {
+        const { events: rows, user } = await fetchEvents();
+        if (cancelled) return;
+        setCurrentUserId(user?.id ?? null);
+        setEvents(rows.map(formatEventRow));
+      } catch (fetchError) {
+        if (!cancelled && !/auth session missing/i.test(fetchError.message)) {
+          setLoadError(fetchError.message);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadEvents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function openAddForm() {
-    setForm(emptyForm);
-    setFormError("");
-    setShowForm(true);
+    setEventToEdit({});
+    setFormError(null);
+    setMessage(null);
   }
 
   function closeForm() {
-    setForm(emptyForm);
-    setFormError("");
-    setShowForm(false);
+    setEventToEdit(null);
+    setFormError(null);
   }
 
   function handleEventClick(clickInfo) {
-    const ev = clickInfo.event;
-
-    // Pull date + times back out of the clicked event
-    const start = ev.start;
-    const end = ev.end;
-    const dateStr = start ? toDateString(start) : "";
-    const startTimeStr = ev.allDay || !start ? "" : toTimeString(start);
-    const endTimeStr = ev.allDay || !end ? "" : toTimeString(end);
-
-    setForm({
-      id: ev.id,
-      title: ev.title,
-      date: dateStr,
-      startTime: startTimeStr,
-      endTime: endTimeStr,
-      location: ev.extendedProps.location || "",
-    });
-    setFormError("");
-    setShowForm(true);
+    setEventToEdit(clickInfo.event.extendedProps.eventData);
+    setFormError(null);
+    setMessage(null);
   }
 
-  function handleSave() {
-    if (!form.title.trim()) {
-      setFormError("Please enter a title.");
-      return;
-    }
-    if (!form.date) {
-      setFormError("Please pick a date.");
-      return;
-    }
+  async function handleSubmitEvent(eventInput) {
+    setSavingEvent(true);
+    setFormError(null);
 
-    const built = {
-      id: isEditing ? form.id : String(Date.now()),
-      title: form.title,
-      color: "#F0997B",
-      extendedProps: { location: form.location },
-    };
-
-    if (form.startTime) {
-      built.start = `${form.date}T${form.startTime}`;
-      if (form.endTime) {
-        built.end = `${form.date}T${form.endTime}`;
+    try {
+      if (eventToEdit?.id) {
+        const updated = formatEventRow(
+          await updateEvent(eventToEdit.id, eventInput),
+        );
+        setEvents((currentEvents) =>
+          currentEvents.map((event) =>
+            event.id === updated.id ? updated : event,
+          ),
+        );
+        setMessage(`Updated "${updated.title}".`);
+      } else {
+        const created = formatEventRow(await createEvent(eventInput));
+        setEvents((currentEvents) => [...currentEvents, created]);
+        setCurrentUserId(created.userId);
+        setMessage(`Created "${created.title}".`);
       }
-    } else {
-      built.date = form.date;
+      closeForm();
+    } catch (submitError) {
+      setFormError(submitError.message);
+    } finally {
+      setSavingEvent(false);
     }
-
-    if (isEditing) {
-      setEvents((prev) => prev.map((e) => (e.id === form.id ? built : e)));
-    } else {
-      setEvents((prev) => [...prev, built]);
-    }
-
-    closeForm();
   }
 
-  function handleDelete() {
-    setEvents((prev) => prev.filter((e) => e.id !== form.id));
-    closeForm();
+  async function confirmDeleteEvent() {
+    if (!eventToDelete) return;
+
+    setDeletingEventId(eventToDelete.id);
+    setMessage(null);
+
+    try {
+      await deleteEvent(eventToDelete.id);
+      setEvents((currentEvents) =>
+        currentEvents.filter((event) => event.id !== eventToDelete.id),
+      );
+      setMessage(`Deleted "${eventToDelete.title}".`);
+      setEventToDelete(null);
+      closeForm();
+    } catch (deleteError) {
+      setMessage(`Couldn't delete: ${deleteError.message}`);
+    } finally {
+      setDeletingEventId(null);
+    }
   }
 
   return (
@@ -122,123 +161,112 @@ function Calendar() {
           <h1>Your calendar</h1>
           <p>Click any event to edit it, or add a new one.</p>
         </div>
-        <button onClick={openAddForm} style={primaryBtn}>
+        <button className="create-button" onClick={openAddForm} type="button">
           + Add event
         </button>
       </section>
 
-      {showForm && (
-        <section className="panel" style={{ padding: "1.25rem", marginBottom: "1rem" }}>
-          <div style={{ display: "grid", gap: "0.75rem", maxWidth: "480px" }}>
-            <h2 style={{ margin: 0 }}>{isEditing ? "Edit event" : "Add event"}</h2>
+      {message && <p className="event-message event-message-success">{message}</p>}
+      {loadError && (
+        <p className="event-message event-message-error">
+          Couldn't load your events: {loadError}
+        </p>
+      )}
+      {!loading && !loadError && !currentUserId && (
+        <p className="event-message event-message-error">
+          Sign in to create and view your calendar events.
+        </p>
+      )}
 
-            <label style={fieldLabel}>
-              <span>Title</span>
-              <input type="text" value={form.title} onChange={handleField("title")} placeholder="Club meeting" />
-            </label>
+      <section className="calendar-panel">
+        {loading ? (
+          <p className="empty-state">Loading calendar...</p>
+        ) : (
+          <FullCalendar
+            eventClick={handleEventClick}
+            events={calendarEvents}
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
+            height="auto"
+            initialView="dayGridMonth"
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          />
+        )}
+      </section>
 
-            <label style={fieldLabel}>
-              <span>Date</span>
-              <input type="date" value={form.date} onChange={handleField("date")} />
-            </label>
-
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <label style={{ ...fieldLabel, flex: 1 }}>
-                <span>Start time</span>
-                <input type="time" value={form.startTime} onChange={handleField("startTime")} />
-              </label>
-              <label style={{ ...fieldLabel, flex: 1 }}>
-                <span>End time</span>
-                <input type="time" value={form.endTime} onChange={handleField("endTime")} />
-              </label>
-            </div>
-
-            <label style={fieldLabel}>
-              <span>Location</span>
-              <input type="text" value={form.location} onChange={handleField("location")} placeholder="East Field" />
-            </label>
-
-            {formError && <p style={{ color: "#993C1D", margin: 0 }}>{formError}</p>}
-
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              <button onClick={handleSave} style={primaryBtn}>
-                {isEditing ? "Save changes" : "Save event"}
+      {eventToEdit && (
+        <div
+          aria-labelledby="calendar-event-form-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog event-form-dialog">
+            <p className="eyebrow">{eventToEdit.id ? "Edit event" : "New event"}</p>
+            <h2 id="calendar-event-form-title">
+              {eventToEdit.id ? eventToEdit.title : "Add Event"}
+            </h2>
+            <EventForm
+              error={formError}
+              initialData={eventToEdit}
+              isLoading={savingEvent}
+              mode={eventToEdit.id ? "edit" : "add"}
+              onCancel={closeForm}
+              onSubmit={handleSubmitEvent}
+            />
+            {eventToEdit.id && (
+              <button
+                className="calendar-delete-button"
+                disabled={deletingEventId === eventToEdit.id || savingEvent}
+                onClick={() => setEventToDelete(eventToEdit)}
+                type="button"
+              >
+                Delete event
               </button>
-              {isEditing && (
-                <button onClick={handleDelete} style={dangerBtn}>
-                  Delete
-                </button>
-              )}
-              <button onClick={closeForm} style={ghostBtn}>
+            )}
+          </div>
+        </div>
+      )}
+
+      {eventToDelete && (
+        <div
+          aria-labelledby="calendar-delete-event-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <p className="eyebrow">Delete event</p>
+            <h2 id="calendar-delete-event-title">{eventToDelete.title}</h2>
+            <p>This will permanently remove the event from your calendar.</p>
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                disabled={deletingEventId === eventToDelete.id}
+                onClick={() => setEventToDelete(null)}
+                type="button"
+              >
                 Cancel
+              </button>
+              <button
+                className="btn-danger"
+                disabled={deletingEventId === eventToDelete.id}
+                onClick={confirmDeleteEvent}
+                type="button"
+              >
+                {deletingEventId === eventToDelete.id
+                  ? "Deleting..."
+                  : "Confirm delete"}
               </button>
             </div>
           </div>
-        </section>
+        </div>
       )}
-
-      <section className="panel" style={{ padding: "1.5rem" }}>
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          }}
-          events={events}
-          eventClick={handleEventClick}
-          height="auto"
-        />
-      </section>
     </main>
   );
 }
-
-// Helpers: turn a Date object into the strings the inputs need
-function toDateString(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function toTimeString(date) {
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${h}:${min}`;
-}
-
-const fieldLabel = { display: "grid", gap: "0.25rem" };
-
-const primaryBtn = {
-  padding: "0.6rem 1.1rem",
-  borderRadius: "0.6rem",
-  border: "none",
-  background: "#0F6E56",
-  color: "white",
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
-const dangerBtn = {
-  padding: "0.6rem 1.1rem",
-  borderRadius: "0.6rem",
-  border: "none",
-  background: "#993C1D",
-  color: "white",
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
-const ghostBtn = {
-  padding: "0.6rem 1.1rem",
-  borderRadius: "0.6rem",
-  border: "1px solid #B4B2A9",
-  background: "transparent",
-  color: "#444441",
-  fontWeight: 500,
-  cursor: "pointer",
-};
 
 export default Calendar;

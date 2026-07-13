@@ -12,8 +12,8 @@ import {
 } from "../data/eventService";
 import { formatEventRow } from "../data/formatEventRow";
 import { fetchUcscEvents } from "../data/ucscEvents";
-import { createClient } from "../lib/supabase/client";
 import { matchesPreferences } from "../data/matchesPreferences";
+import { EVENT_VISIBILITY } from "../data/eventVisibility";
 import { useUserPreferences } from "../hooks/useUserPreferences";
 
 const WHO_OPTIONS = [
@@ -51,9 +51,9 @@ function useUrlFilter(key) {
   return [value, update];
 }
 
-function matchesWho(event, who) {
-  if (who === "community") return event.visibility === "public";
-  if (who === "personal") return event.visibility === "personal";
+function matchesWho(event, who, currentUserId) {
+  if (who === "community") return event.visibility === EVENT_VISIBILITY.COMMUNITY;
+  if (who === "personal") return currentUserId && event.userId === currentUserId;
   return true;
 }
 
@@ -69,7 +69,6 @@ function matchesWhen(event, when) {
 }
 
 function sortEvents(events) {
-const supabase = createClient();
   return [...events].sort((a, b) => {
     const aDate = `${a.sortDate ?? ""}T${a.sortTime ?? "00:00"}`;
     const bDate = `${b.sortDate ?? ""}T${b.sortTime ?? "00:00"}`;
@@ -78,11 +77,11 @@ const supabase = createClient();
 }
 
 function toPersonalEvent(row) {
-  return { ...formatEventRow(row), visibility: "personal" };
+  return formatEventRow(row);
 }
 
 function toCommunityEvent(row) {
-  return { ...formatEventRow(row), visibility: "public" };
+  return formatEventRow(row);
 }
 
 // Builds a createEvent() payload from a detected/community event so it can
@@ -96,6 +95,7 @@ function toScheduleInput(event) {
     endTime: event.sortEndTime || null,
     location: event.location,
     source: event.source,
+    visibility: EVENT_VISIBILITY.PRIVATE,
   };
 }
 
@@ -183,11 +183,19 @@ function Dashboard() {
     };
   }, []);
 
-  const allEvents = [...personalEvents, ...publicEvents, ...ucscEvents];
+  const personalEventIds = new Set(personalEvents.map((event) => event.id));
+  const communityEventsWithoutDuplicates = publicEvents.filter(
+    (event) => !personalEventIds.has(event.id),
+  );
+  const allEvents = [
+    ...personalEvents,
+    ...communityEventsWithoutDuplicates,
+    ...ucscEvents,
+  ];
 
   const visibleEvents = sortEvents(allEvents).filter(
     (event) =>
-      matchesWho(event, who) &&
+      matchesWho(event, who, currentUserId) &&
       matchesWhen(event, when) &&
       matchesPreferences(event, preferences),
   );
@@ -211,9 +219,14 @@ function Dashboard() {
 
     try {
       if (eventToEdit) {
-        const updated = toPersonalEvent(await updateEvent(eventToEdit.id, eventInput));
+        const updated = toPersonalEvent(
+          await updateEvent(eventToEdit.id, eventInput),
+        );
         setPersonalEvents((events) =>
           events.map((event) => (event.id === updated.id ? updated : event)),
+        );
+        setPublicEvents((events) =>
+          events.filter((event) => event.id !== updated.id),
         );
         setMessage(`Updated "${updated.title}".`);
       } else {
@@ -268,6 +281,9 @@ function Dashboard() {
     try {
       await deleteEvent(eventToDelete.id);
       setPersonalEvents((events) =>
+        events.filter((event) => event.id !== eventToDelete.id),
+      );
+      setPublicEvents((events) =>
         events.filter((event) => event.id !== eventToDelete.id),
       );
       setMessage(`Deleted "${eventToDelete.title}".`);
@@ -354,10 +370,14 @@ function Dashboard() {
             <div className="event-card-header">
               <span
                 className={`badge badge-${
-                  event.visibility === "public" ? "public" : "personal"
+                  event.visibility === EVENT_VISIBILITY.COMMUNITY
+                    ? "community"
+                    : "private"
                 }`}
               >
-                {event.visibility === "public" ? "Public" : "Personal"}
+                {event.visibility === EVENT_VISIBILITY.COMMUNITY
+                  ? "Community"
+                  : "Private"}
               </span>
               <span className="event-source">{event.source}</span>
             </div>
