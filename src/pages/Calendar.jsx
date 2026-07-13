@@ -39,6 +39,14 @@ function toCalendarEvent(event) {
   return calendarEvent;
 }
 
+function todayString() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function Calendar() {
   const [events, setEvents] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -50,6 +58,13 @@ function Calendar() {
   const [eventToEdit, setEventToEdit] = useState(null);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [deletingEventId, setDeletingEventId] = useState(null);
+  const [missingFields, setMissingFields] = useState([]);
+
+  // AI describe box
+  const [showAiBox, setShowAiBox] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const calendarEvents = useMemo(() => events.map(toCalendarEvent), [events]);
 
@@ -81,7 +96,22 @@ function Calendar() {
     };
   }, []);
 
+  function openAiBox() {
+    setShowAiBox(true);
+    setAiText("");
+    setAiError("");
+    setMessage(null);
+  }
+
+  function closeAiBox() {
+    setShowAiBox(false);
+    setAiText("");
+    setAiError("");
+  }
+
   function openAddForm() {
+    closeAiBox();
+    setMissingFields([]);
     setEventToEdit({});
     setFormError(null);
     setMessage(null);
@@ -90,9 +120,72 @@ function Calendar() {
   function closeForm() {
     setEventToEdit(null);
     setFormError(null);
+    setMissingFields([]);
+  }
+
+  async function handleAiParse() {
+    if (!aiText.trim()) {
+      setAiError("Describe your event first.");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError("");
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-event`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text: aiText, today: todayString() }),
+        },
+      );
+
+      const parsed = await res.json();
+
+      if (!res.ok) {
+        console.error("Edge function error:", parsed);
+        setAiError(parsed.error || `Request failed (${res.status}).`);
+        return;
+      }
+
+      if (parsed.error) {
+        setAiError("Couldn't find an event in that text. Try being more specific.");
+        return;
+      }
+
+      const gaps = [];
+      if (!parsed.title) gaps.push("title");
+      if (!parsed.date) gaps.push("eventDate");
+      if (!parsed.startTime) gaps.push("startTime");
+
+      // Map the AI's shape onto the shape EventForm expects
+      setMissingFields(gaps);
+      setEventToEdit({
+        title: parsed.title || "",
+        description: "",
+        eventDate: parsed.date || "",
+        startTime: parsed.startTime || "",
+        endTime: parsed.endTime || "",
+        location: parsed.location || "",
+      });
+      setFormError(null);
+      closeAiBox();
+    } catch (err) {
+      console.error(err);
+      setAiError("Request failed. Check your connection.");
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   function handleEventClick(clickInfo) {
+    closeAiBox();
+    setMissingFields([]);
     setEventToEdit(clickInfo.event.extendedProps.eventData);
     setFormError(null);
     setMessage(null);
@@ -159,12 +252,51 @@ function Calendar() {
         <div>
           <p className="eyebrow">Event calendar</p>
           <h1>Your calendar</h1>
-          <p>Click any event to edit it, or add a new one.</p>
+          <p>Describe an event in plain text, or click an event to edit it.</p>
         </div>
-        <button className="create-button" onClick={openAddForm} type="button">
-          + Add event
-        </button>
+        {!showAiBox && (
+          <button className="create-button" onClick={openAiBox} type="button">
+            + Add event
+          </button>
+        )}
       </section>
+
+      {showAiBox && (
+        <section className="panel ai-describe-box">
+          <label>
+            Describe an event
+            <textarea
+              autoFocus
+              onChange={(e) => {
+                setAiText(e.target.value);
+                setAiError("");
+              }}
+              placeholder="surf club meeting next Tuesday 5pm at Main Beach"
+              rows={2}
+              value={aiText}
+            />
+          </label>
+
+          {aiError && <p className="event-message event-message-error">{aiError}</p>}
+
+          <div className="ai-describe-actions">
+            <button
+              className="btn-primary"
+              disabled={aiLoading}
+              onClick={handleAiParse}
+              type="button"
+            >
+              {aiLoading ? "Thinking..." : "Add with AI"}
+            </button>
+            <button className="btn-link" onClick={openAddForm} type="button">
+              enter manually
+            </button>
+            <button className="btn-link" onClick={closeAiBox} type="button">
+              cancel
+            </button>
+          </div>
+</section>
+      )}
 
       {message && <p className="event-message event-message-success">{message}</p>}
       {loadError && (
@@ -205,7 +337,7 @@ function Calendar() {
           role="dialog"
         >
           <div className="confirm-dialog event-form-dialog">
-            <p className="eyebrow">{eventToEdit.id ? "Edit event" : "New event"}</p>
+            <p className="eyebrow">{eventToEdit.id ? "Edit event" : "Review event"}</p>
             <h2 id="calendar-event-form-title">
               {eventToEdit.id ? eventToEdit.title : "Add Event"}
             </h2>
@@ -213,6 +345,7 @@ function Calendar() {
               error={formError}
               initialData={eventToEdit}
               isLoading={savingEvent}
+              missingFields={missingFields}
               mode={eventToEdit.id ? "edit" : "add"}
               onCancel={closeForm}
               onSubmit={handleSubmitEvent}

@@ -1261,3 +1261,66 @@ select {
     padding: 28px 20px;
   }
 }
+.time-picker-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.time-picker-toggle {
+  border: none;
+  background: none;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+  color: #6b6a66;
+  padding: 0;
+}
+
+.time-picker-selects {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.time-picker-selects select {
+  flex: 1;
+}
+
+.ai-describe-box {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 640px;
+}
+
+.ai-describe-box label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ai-describe-box textarea {
+  resize: vertical;
+  width: 100%;
+}
+
+.ai-describe-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  color: #6b6a66;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+}
+
+.field-invalid {
+  border-color: #993c1d;
+  background: #fdf3f0;
+}
