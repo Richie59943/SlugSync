@@ -16,7 +16,16 @@ const emptyForm = {
 };
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-const MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+const MINUTES = ["00", "15", "30", "45"];
+
+// Existing events may have been saved with a minute outside the 15-minute
+// set (e.g. from before this change, or an external import). Keep that exact
+// value selectable/visible instead of silently rounding it away — it only
+// gets replaced if the user actively picks a different minute and saves.
+function minuteOptionsFor(currentMinute) {
+  if (!currentMinute || MINUTES.includes(currentMinute)) return MINUTES;
+  return [...MINUTES, currentMinute].sort();
+}
 
 // "17:30" -> { hour: "5", minute: "30", ampm: "PM" }
 function parse24(value) {
@@ -79,9 +88,13 @@ function TimePicker({ label, value, onChange, error }) {
               <option key={h} value={String(h)}>{h}</option>
             ))}
           </select>
-          <select onChange={(e) => update("minute", e.target.value)} value={parts.minute}>
+          <select
+            className="time-picker-minute"
+            onChange={(e) => update("minute", e.target.value)}
+            value={parts.minute}
+          >
             <option value="">--</option>
-            {MINUTES.map((m) => (
+            {minuteOptionsFor(parts.minute).map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>

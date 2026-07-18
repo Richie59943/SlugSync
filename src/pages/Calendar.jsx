@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -10,16 +10,26 @@ import {
   fetchEvents,
   updateEvent,
 } from "../data/eventService";
-import { EVENT_VISIBILITY } from "../data/eventVisibility";
 import { formatEventRow } from "../data/formatEventRow";
+import { useQuickAdd } from "../context/QuickAddContext";
+import { CATEGORY_PALETTE, getCategoryStyle } from "../data/categoryStyles";
+
+const CATEGORY_ORDER = ["campus", "community", "clubs", "classes", "music", "outdoors"];
+
+const CALENDAR_VIEWS = [
+  { key: "dayGridMonth", label: "Month" },
+  { key: "timeGridWeek", label: "Week" },
+  { key: "timeGridDay", label: "Day" },
+];
 
 function toCalendarEvent(event) {
   const hasTime = Boolean(event.startTime);
+  const cat = getCategoryStyle(event);
   const calendarEvent = {
     id: event.id,
     title: event.title,
-    color:
-      event.visibility === EVENT_VISIBILITY.COMMUNITY ? "#0f766e" : "#4f46e5",
+    color: cat.dot,
+    textColor: "#ffffff",
     extendedProps: {
       eventData: event,
       location: event.location,
@@ -66,7 +76,18 @@ function Calendar() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
+  // Custom toolbar + sidebar state — drives FullCalendar via its ref API
+  // instead of FullCalendar's own built-in toolbar.
+  const calendarRef = useRef(null);
+  const [calView, setCalView] = useState("dayGridMonth");
+  const [calTitle, setCalTitle] = useState("");
+  const [selectedDate, setSelectedDate] = useState(todayString());
+
   const calendarEvents = useMemo(() => events.map(toCalendarEvent), [events]);
+  const { registerOpenAdd } = useQuickAdd();
+
+  // Lets the shared nav's "+ Add event" button reuse this page's own flow.
+  useEffect(() => registerOpenAdd(() => openAddForm()), [registerOpenAdd]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,6 +212,27 @@ function Calendar() {
     setMessage(null);
   }
 
+  function handleDateClick(clickInfo) {
+    setSelectedDate(clickInfo.dateStr.slice(0, 10));
+  }
+
+  function goPrev() {
+    calendarRef.current?.getApi().prev();
+  }
+
+  function goNext() {
+    calendarRef.current?.getApi().next();
+  }
+
+  function goToday() {
+    calendarRef.current?.getApi().today();
+  }
+
+  function changeView(viewKey) {
+    calendarRef.current?.getApi().changeView(viewKey);
+    setCalView(viewKey);
+  }
+
   async function handleSubmitEvent(eventInput) {
     setSavingEvent(true);
     setFormError(null);
@@ -240,6 +282,28 @@ function Calendar() {
       setDeletingEventId(null);
     }
   }
+
+  const selectedDayEvents = events
+    .filter((event) => event.eventDate === selectedDate)
+    .sort((a, b) => (a.sortTime ?? "").localeCompare(b.sortTime ?? ""));
+  const selectedDayLabel = new Date(`${selectedDate}T00:00`).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const categoryCounts = new Map();
+  events.forEach((event) => {
+    const key = getCategoryStyle(event).key;
+    if (!key) return;
+    categoryCounts.set(key, (categoryCounts.get(key) || 0) + 1);
+  });
+  const legend = CATEGORY_ORDER.filter((key) => categoryCounts.has(key)).map((key) => ({
+    key,
+    label: CATEGORY_PALETTE[key].label,
+    dot: CATEGORY_PALETTE[key].dot,
+    count: categoryCounts.get(key),
+  }));
 
   return (
     <main className="dashboard">
@@ -310,24 +374,107 @@ function Calendar() {
         </p>
       )}
 
-      <section className="calendar-panel">
-        {loading ? (
-          <p className="empty-state">Loading calendar...</p>
-        ) : (
-          <FullCalendar
-            eventClick={handleEventClick}
-            events={calendarEvents}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
-            height="auto"
-            initialView="dayGridMonth"
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          />
-        )}
-      </section>
+      <div className="calendar-layout">
+        <section className="calendar-panel">
+          {loading ? (
+            <p className="empty-state">Loading calendar...</p>
+          ) : (
+            <>
+              <div className="calendar-toolbar">
+                <div className="calendar-toolbar-left">
+                  <button
+                    className="calendar-nav-button"
+                    onClick={goPrev}
+                    type="button"
+                    aria-label="Previous"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="calendar-nav-button"
+                    onClick={goNext}
+                    type="button"
+                    aria-label="Next"
+                  >
+                    ›
+                  </button>
+                  <button className="calendar-today-button" onClick={goToday} type="button">
+                    Today
+                  </button>
+                  <span className="calendar-title">{calTitle}</span>
+                </div>
+                <div className="calendar-view-switch" role="tablist" aria-label="Calendar view">
+                  {CALENDAR_VIEWS.map((view) => (
+                    <button
+                      key={view.key}
+                      className={`calendar-view-button${calView === view.key ? " is-active" : ""}`}
+                      onClick={() => changeView(view.key)}
+                      type="button"
+                      role="tab"
+                      aria-selected={calView === view.key}
+                    >
+                      {view.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <FullCalendar
+                ref={calendarRef}
+                dateClick={handleDateClick}
+                datesSet={(arg) => setCalTitle(arg.view.title)}
+                eventClick={handleEventClick}
+                events={calendarEvents}
+                headerToolbar={false}
+                height="auto"
+                initialView="dayGridMonth"
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              />
+            </>
+          )}
+        </section>
+
+        <aside className="dashboard-sidebar">
+          <div className="panel">
+            <div className="sidebar-card-title">{selectedDayLabel}</div>
+            {selectedDayEvents.length === 0 && (
+              <p className="empty-state" style={{ textAlign: "left", margin: 0 }}>
+                No events this day.
+              </p>
+            )}
+            {selectedDayEvents.map((event) => {
+              const cat = getCategoryStyle(event);
+              return (
+                <div
+                  key={event.id}
+                  style={{ borderLeft: `3px solid ${cat.dot}`, padding: "2px 0 2px 12px", marginBottom: 10 }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 14, fontFamily: "var(--font-display)" }}>
+                    {event.title}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "var(--color-text-muted)", marginTop: 2 }}>
+                    {event.time}
+                    {event.location ? ` · ${event.location}` : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {legend.length > 0 && (
+            <div className="panel">
+              <div className="sidebar-card-title">Categories</div>
+              {legend.map((l) => (
+                <div className="legend-row" key={l.key}>
+                  <span className="legend-dot" style={{ background: l.dot }} />
+                  <span className="legend-label">{l.label}</span>
+                  <span className="legend-count">{l.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
 
       {eventToEdit && (
         <div

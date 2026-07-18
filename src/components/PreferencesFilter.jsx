@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { CATEGORY_PALETTE } from "../data/categoryStyles";
 
 const EMPTY_DRAFT = { clubs: [], classes: [], categories: [] };
+
+// Categories are a real, fixed taxonomy already used across the app (event
+// badges, Dashboard/Calendar filter chips) — always offering them here isn't
+// inventing data, it just exposes the same taxonomy as selectable filters.
+const CATEGORY_OPTIONS = Object.values(CATEGORY_PALETTE).map((entry) => entry.label);
 
 function uniqueSorted(values) {
   const seen = new Map();
@@ -14,9 +20,12 @@ function uniqueSorted(values) {
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
-// Builds the checkbox option lists from whatever events are currently in
-// memory (mock or real) plus the user's already-saved selections, so saved
-// preferences stay visible/selectable even if no event currently matches them.
+// Builds the option lists from whatever events are currently in memory (mock
+// or real) plus the user's already-saved selections, so saved preferences
+// stay visible/selectable even if no event currently matches them. Clubs and
+// classes are strictly derived from real event data — never fabricated —
+// while categories always include the app's fixed category taxonomy on top
+// of any literal category text found on events.
 function buildOptions(events, preferences) {
   return {
     clubs: uniqueSorted([
@@ -28,6 +37,7 @@ function buildOptions(events, preferences) {
       ...(preferences.classes || []),
     ]),
     categories: uniqueSorted([
+      ...CATEGORY_OPTIONS,
       ...events.map((e) => e.category),
       ...(preferences.categories || []),
     ]),
@@ -40,23 +50,35 @@ function toggleValue(list, value) {
     : [...list, value];
 }
 
-function PreferenceGroup({ title, field, options, draft, onToggle }) {
-  if (options.length === 0) return null;
+function PreferenceGroup({ title, field, options, draft, onToggle, emptyHint }) {
+  if (options.length === 0) {
+    if (!emptyHint) return null;
+    return (
+      <fieldset className="preferences-group">
+        <legend>{title}</legend>
+        <p className="preferences-status preferences-status-secondary">{emptyHint}</p>
+      </fieldset>
+    );
+  }
 
   return (
     <fieldset className="preferences-group">
       <legend>{title}</legend>
       <div className="preferences-options">
-        {options.map((option) => (
-          <label key={option} className="preferences-option">
-            <input
-              type="checkbox"
-              checked={draft[field].includes(option)}
-              onChange={() => onToggle(field, option)}
-            />
-            {option}
-          </label>
-        ))}
+        {options.map((option) => {
+          const active = draft[field].includes(option);
+          return (
+            <button
+              aria-pressed={active}
+              className={`preferences-chip${active ? " is-active" : ""}`}
+              key={option}
+              onClick={() => onToggle(field, option)}
+              type="button"
+            >
+              {option}
+            </button>
+          );
+        })}
       </div>
     </fieldset>
   );
@@ -123,6 +145,18 @@ function PreferencesFilter({ events, userId, preferences, status, error, onSave,
 
       {isOpen && (
         <section aria-label="Preferences" className="preferences-panel">
+          <div className="preferences-panel-header">
+            <p className="preferences-panel-title">Filter your feed</p>
+            <button
+              aria-label="Close preferences"
+              className="preferences-close"
+              onClick={() => setIsOpen(false)}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+
           {status === "loading" && <p className="preferences-status">Loading preferences…</p>}
           {status === "error" && error && (
             <p className="event-message event-message-error">{error}</p>
@@ -144,6 +178,7 @@ function PreferencesFilter({ events, userId, preferences, status, error, onSave,
             options={options.clubs}
             draft={draft}
             onToggle={handleToggle}
+            emptyHint="No clubs found yet — more will appear as events are added."
           />
           <PreferenceGroup
             title="Classes"
@@ -151,13 +186,8 @@ function PreferencesFilter({ events, userId, preferences, status, error, onSave,
             options={options.classes}
             draft={draft}
             onToggle={handleToggle}
+            emptyHint="No classes found yet — more will appear as events are added."
           />
-
-          {options.categories.length === 0 &&
-            options.clubs.length === 0 &&
-            options.classes.length === 0 && (
-              <p className="preferences-status">No clubs, classes, or categories found yet.</p>
-            )}
 
           <div className="confirm-actions">
             <button

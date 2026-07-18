@@ -2,6 +2,8 @@
 // events since it only reads three plain fields and never crashes on
 // missing/null values.
 
+import { CATEGORY_PALETTE, getCategoryStyle } from "./categoryStyles";
+
 function normalize(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -26,9 +28,16 @@ export function matchesPreferences(event, preferences) {
   const eventCategory = normalize(event.category);
   const eventClub = normalize(event.club);
   const eventClass = normalize(event.class_code ?? event.class);
+  // Most real events never set a raw `category` string, so also compare
+  // against the same bucketed category the rest of the app uses for
+  // badges/filter chips (getCategoryStyle) — lets a canonical pick like
+  // "Campus" match real UCSC/community events, not just literal text matches.
+  const bucketKey = getCategoryStyle(event).key;
+  const eventCategoryLabel = normalize(bucketKey ? CATEGORY_PALETTE[bucketKey].label : "");
 
   return (
-    (categories.size > 0 && categories.has(eventCategory)) ||
+    (categories.size > 0 &&
+      (categories.has(eventCategory) || categories.has(eventCategoryLabel))) ||
     (clubs.size > 0 && clubs.has(eventClub)) ||
     (classes.size > 0 && classes.has(eventClass))
   );

@@ -11,12 +11,32 @@ import {
   sendFriendRequest,
 } from "../data/friendService";
 import { toBusySet } from "../data/busyGrid";
+import { initialsFromName } from "../lib/displayName";
 
 const GRID_START_HOUR = 8;
 const GRID_END_HOUR = 22;
 
+const AVATAR_COLORS = ["#3b6fe0", "#7c56f0", "#23a35f", "#e0912b", "#e04e93", "#1aa89b"];
+
 function displayName(profile) {
   return profile.full_name || profile.username || "Unnamed slug";
+}
+
+// Deterministic color per profile id so the same person always gets the
+// same avatar color, without storing anything new.
+function avatarColorFor(id) {
+  if (!id) return AVATAR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[hash];
+}
+
+function FriendAvatar({ profile }) {
+  return (
+    <span className="friend-avatar" style={{ background: avatarColorFor(profile.id) }}>
+      {initialsFromName(displayName(profile))}
+    </span>
+  );
 }
 
 // next 7 days as { key: "YYYY-MM-DD", label: "Mon 20" }, built manually to
@@ -292,17 +312,20 @@ function Friends() {
               )}
               {searchResults.map((profile) => (
                 <article className="friend-row" key={profile.id}>
-                  <div>
-                    <strong>{displayName(profile)}</strong>
-                    <p>
-                      {[
-                        profile.username && `@${profile.username}`,
-                        profile.major,
-                        profile.year,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
+                  <div className="friend-row-main">
+                    <FriendAvatar profile={profile} />
+                    <div>
+                      <strong>{displayName(profile)}</strong>
+                      <p>
+                        {[
+                          profile.username && `@${profile.username}`,
+                          profile.major,
+                          profile.year,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
                   </div>
                   {renderAddAction(profile)}
                 </article>
@@ -322,9 +345,12 @@ function Friends() {
             <h2>Suggested for you</h2>
             {visibleSuggestions.map((profile) => (
               <article className="friend-row" key={profile.id}>
-                <div>
-                  <strong>{displayName(profile)}</strong>
-                  <p>{suggestionReason(profile)}</p>
+                <div className="friend-row-main">
+                  <FriendAvatar profile={profile} />
+                  <div>
+                    <strong>{displayName(profile)}</strong>
+                    <p>{suggestionReason(profile)}</p>
+                  </div>
                 </div>
                 {renderAddAction(profile)}
               </article>
@@ -338,9 +364,12 @@ function Friends() {
           <h2>Requests</h2>
           {buckets.incoming.map(({ friendshipId, profile }) => (
             <article className="friend-row" key={friendshipId}>
-              <div>
-                <strong>{displayName(profile)}</strong>
-                <p>wants to be your friend</p>
+              <div className="friend-row-main">
+                <FriendAvatar profile={profile} />
+                <div>
+                  <strong>{displayName(profile)}</strong>
+                  <p>wants to be your friend</p>
+                </div>
               </div>
               <div className="friend-row-actions">
                 <button
@@ -367,9 +396,12 @@ function Friends() {
           ))}
           {buckets.outgoing.map(({ friendshipId, profile }) => (
             <article className="friend-row" key={friendshipId}>
-              <div>
-                <strong>{displayName(profile)}</strong>
-                <p>request pending</p>
+              <div className="friend-row-main">
+                <FriendAvatar profile={profile} />
+                <div>
+                  <strong>{displayName(profile)}</strong>
+                  <p>request pending</p>
+                </div>
               </div>
               <button
                 className="btn-secondary"
@@ -392,13 +424,16 @@ function Friends() {
         )}
         {buckets.friends.map(({ friendshipId, profile }) => (
           <article className="friend-row" key={friendshipId}>
-            <div>
-              <strong>{displayName(profile)}</strong>
-              <p>
-                {[profile.username && `@${profile.username}`, profile.major]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+            <div className="friend-row-main">
+              <FriendAvatar profile={profile} />
+              <div>
+                <strong>{displayName(profile)}</strong>
+                <p>
+                  {[profile.username && `@${profile.username}`, profile.major]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
             </div>
             <div className="friend-row-actions">
               <button
@@ -423,7 +458,10 @@ function Friends() {
       {selected && (
         <section className="panel" aria-label="Friend availability">
           <div className="friend-row">
-            <h2>{displayName(selected)}'s week</h2>
+            <div className="friend-row-main">
+              <FriendAvatar profile={selected} />
+              <h2 style={{ margin: 0 }}>{displayName(selected)}'s week</h2>
+            </div>
             <button
               className="btn-secondary"
               onClick={() => {
