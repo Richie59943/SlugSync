@@ -51,6 +51,33 @@ function useUrlFilter(key) {
   return [value, update];
 }
 
+// ponytail: no geocoding — a raw Google Maps search on the location text is
+// enough; virtual/unknown venues get plain text instead of a dead-end link
+function locationMapsUrl(location) {
+  if (!location || /virtual|online|tba|zoom/i.test(location)) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
+// stopPropagation keeps a card's location link from also opening the detail modal
+function EventLocation({ location }) {
+  if (!location) return null;
+  const url = locationMapsUrl(location);
+  if (!url) return <p>{location}</p>;
+  return (
+    <p>
+      <a
+        className="location-link"
+        href={url}
+        onClick={(clickEvent) => clickEvent.stopPropagation()}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {location} ↗
+      </a>
+    </p>
+  );
+}
+
 function matchesWho(event, who, currentUserId) {
   if (who === "community") return event.visibility === EVENT_VISIBILITY.COMMUNITY;
   if (who === "personal") return currentUserId && event.userId === currentUserId;
@@ -118,6 +145,7 @@ function Dashboard() {
   const [deletingEventId, setDeletingEventId] = useState(null);
   const [addingEventId, setAddingEventId] = useState(null);
   const [signInPromptEvent, setSignInPromptEvent] = useState(null);
+  const [eventToDetail, setEventToDetail] = useState(null);
   const [who, setWho] = useUrlFilter("who");
   const [when, setWhen] = useUrlFilter("when");
   const {
@@ -366,7 +394,21 @@ function Dashboard() {
       <section className="event-grid" aria-label="Events">
         {loading && <p className="empty-state">Loading events…</p>}
         {visibleEvents.map((event) => (
-          <article className="event-card" key={event.id}>
+          <article
+            className="event-card"
+            key={event.id}
+            onClick={() => setEventToDetail(event)}
+            onKeyDown={(keyEvent) => {
+              // ignore Enter/Space bubbling up from the card's inner buttons/links
+              if (keyEvent.target !== keyEvent.currentTarget) return;
+              if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+                keyEvent.preventDefault();
+                setEventToDetail(event);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <div className="event-card-header">
               <span
                 className={`badge badge-${
@@ -385,10 +427,15 @@ function Dashboard() {
             <p className="event-when">
               {event.date} · {event.time}
             </p>
-            <p>{event.location}</p>
-            {event.description && <p>{event.description}</p>}
+            <EventLocation location={event.location} />
+            {event.description && (
+              <p className="event-description">{event.description}</p>
+            )}
             {currentUserId && event.userId === currentUserId && (
-              <div className="event-actions">
+              <div
+                className="event-actions"
+                onClick={(clickEvent) => clickEvent.stopPropagation()}
+              >
                 <button
                   className="edit-event-button"
                   disabled={deletingEventId === event.id}
@@ -411,7 +458,10 @@ function Dashboard() {
               </div>
             )}
             {!(currentUserId && event.userId === currentUserId) && (
-              <div className="event-actions">
+              <div
+                className="event-actions"
+                onClick={(clickEvent) => clickEvent.stopPropagation()}
+              >
                 <button
                   className="add-to-schedule-button"
                   disabled={
@@ -508,6 +558,49 @@ function Dashboard() {
                 {deletingEventId === eventToDelete.id
                   ? "Deleting..."
                   : "Confirm delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {eventToDetail && (
+        <div
+          aria-labelledby="event-detail-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <div className="event-card-header">
+              <span
+                className={`badge badge-${
+                  eventToDetail.visibility === EVENT_VISIBILITY.COMMUNITY
+                    ? "community"
+                    : "private"
+                }`}
+              >
+                {eventToDetail.visibility === EVENT_VISIBILITY.COMMUNITY
+                  ? "Community"
+                  : "Private"}
+              </span>
+              <span className="event-source">{eventToDetail.source}</span>
+            </div>
+            <h2 id="event-detail-title">{eventToDetail.title}</h2>
+            <p className="event-when">
+              {eventToDetail.date} · {eventToDetail.time}
+            </p>
+            <EventLocation location={eventToDetail.location} />
+            <p className="event-detail-description">
+              {eventToDetail.description || "No description provided."}
+            </p>
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setEventToDetail(null)}
+                type="button"
+              >
+                Close
               </button>
             </div>
           </div>
