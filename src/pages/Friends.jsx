@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Auth from "./Auth";
+import GroupForm from "../components/groups/GroupForm";
 import { supabase } from "../lib/supabaseClient";
 import {
   acceptFriendRequest,
@@ -10,6 +11,7 @@ import {
   searchUsers,
   sendFriendRequest,
 } from "../data/friendService";
+import { createGroupWithMembers, fetchGroups } from "../data/groupService";
 import { toBusySet } from "../data/busyGrid";
 import { initialsFromName } from "../lib/displayName";
 
@@ -119,6 +121,11 @@ function Friends() {
   const [selected, setSelected] = useState(null); // friend profile being viewed
   const [busyRows, setBusyRows] = useState(null); // null = loading
   const [friendToRemove, setFriendToRemove] = useState(null);
+  const [groups, setGroups] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupFormOpen, setGroupFormOpen] = useState(false);
+  const [groupFormError, setGroupFormError] = useState(null);
+  const [savingGroup, setSavingGroup] = useState(false);
   const [message, setMessage] = useState(null); // { type, text }
 
   useEffect(() => {
@@ -138,6 +145,7 @@ function Friends() {
   useEffect(() => {
     if (!session?.user?.id) return;
     refreshFriendships();
+    refreshGroups();
     // suggestions are best-effort — a failure just leaves the section empty
     fetchSuggestedUsers().then(setSuggestions).catch(() => {});
   }, [session?.user?.id]);
@@ -180,6 +188,18 @@ function Friends() {
       setBuckets(await fetchFriendships());
     } catch (error) {
       setMessage({ type: "error", text: error.message });
+    }
+  }
+
+  async function refreshGroups() {
+    setGroupsLoading(true);
+    try {
+      const { groups: nextGroups } = await fetchGroups();
+      setGroups(nextGroups);
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setGroupsLoading(false);
     }
   }
 
@@ -265,6 +285,23 @@ function Friends() {
     }
   }
 
+  async function handleCreateGroup(groupInput) {
+    setSavingGroup(true);
+    setGroupFormError(null);
+    setMessage(null);
+
+    try {
+      const createdGroup = await createGroupWithMembers(groupInput);
+      setGroups((currentGroups) => [createdGroup, ...currentGroups]);
+      setGroupFormOpen(false);
+      setMessage({ type: "success", text: `Created "${createdGroup.name}".` });
+    } catch (error) {
+      setGroupFormError(error.message);
+    } finally {
+      setSavingGroup(false);
+    }
+  }
+
   if (session === undefined) {
     return (
       <main className="dashboard">
@@ -278,6 +315,7 @@ function Friends() {
   }
 
   const hasRequests = buckets.incoming.length > 0 || buckets.outgoing.length > 0;
+  const acceptedFriends = buckets.friends.map(({ profile }) => profile);
 
   return (
     <main className="dashboard">
@@ -290,6 +328,59 @@ function Friends() {
             without seeing their private event details.
           </p>
         </div>
+        <button
+          className="create-button"
+          onClick={() => {
+            setGroupFormError(null);
+            setGroupFormOpen(true);
+          }}
+          type="button"
+        >
+          + Create Group
+        </button>
+      </section>
+
+      <section className="panel" aria-label="Your groups">
+        <div className="friends-section-header">
+          <div>
+            <p className="eyebrow">Groups</p>
+            <h2>Your groups</h2>
+          </div>
+        </div>
+        {groupsLoading && <p className="empty-state">Loading groups…</p>}
+        {!groupsLoading && groups.length === 0 && (
+          <p className="empty-state">
+            No groups yet — create one and add accepted friends.
+          </p>
+        )}
+        {groups.length > 0 && (
+          <div className="group-list">
+            {groups.map((group) => (
+              <article className="group-card" key={group.id}>
+                <div>
+                  <h3>{group.name}</h3>
+                  {group.description && <p>{group.description}</p>}
+                  <p className="group-card-meta">
+                    {group.members.length} member
+                    {group.members.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="group-member-stack" aria-label="Group members">
+                  {group.members.slice(0, 5).map((member) => (
+                    <span className="friend-avatar" key={member.user_id}>
+                      {initialsFromName(displayName(member.profile))}
+                    </span>
+                  ))}
+                  {group.members.length > 5 && (
+                    <span className="group-member-count">
+                      +{group.members.length - 5}
+                    </span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="panel" aria-label="Find friends">
@@ -524,6 +615,30 @@ function Friends() {
                 Confirm remove
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {groupFormOpen && (
+        <div
+          aria-labelledby="create-group-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog event-form-dialog">
+            <p className="eyebrow">New group</p>
+            <h2 id="create-group-title">Create Group</h2>
+            <GroupForm
+              error={groupFormError}
+              friends={acceptedFriends}
+              isLoading={savingGroup}
+              onCancel={() => {
+                setGroupFormOpen(false);
+                setGroupFormError(null);
+              }}
+              onSubmit={handleCreateGroup}
+            />
           </div>
         </div>
       )}

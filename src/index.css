@@ -2084,6 +2084,152 @@ select:focus {
   gap: 8px;
 }
 
+.friends-section-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.friends-section-header .btn-secondary {
+  width: auto;
+}
+
+.group-list {
+  display: grid;
+  gap: 12px;
+}
+
+.group-card {
+  align-items: center;
+  border-top: 1px solid #f2f3f6;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 0;
+}
+
+.group-card:first-of-type {
+  border-top: none;
+}
+
+.group-card h3 {
+  color: var(--color-text);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.group-card p {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 4px 0 0;
+}
+
+.group-card-meta {
+  font-weight: 700;
+}
+
+.group-member-stack {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.group-member-stack .friend-avatar {
+  border: 2px solid #ffffff;
+  margin-left: -8px;
+}
+
+.group-member-stack .friend-avatar:first-child {
+  margin-left: 0;
+}
+
+.group-member-count {
+  align-items: center;
+  background: #eef2ff;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  color: var(--color-text);
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  height: 36px;
+  justify-content: center;
+  margin-left: -8px;
+  min-width: 36px;
+  padding: 0 8px;
+}
+
+.group-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.group-form-label {
+  color: var(--color-text);
+  display: grid;
+  font-size: 0.88rem;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.group-form-input {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  outline: none;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.group-form-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(244, 78, 50, 0.12);
+}
+
+.member-selector {
+  display: grid;
+  gap: 10px;
+}
+
+.selected-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-member-chip {
+  align-items: center;
+  background: #eef2ff;
+  border: 1px solid #d8defa;
+  border-radius: 999px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 800;
+  gap: 8px;
+  padding: 7px 10px;
+}
+
+.selected-member-chip:hover {
+  background: #e2e8ff;
+}
+
+.member-selector-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 12px;
+}
+
+.member-option .btn-secondary {
+  width: auto;
+}
+
 .busy-grid {
   display: grid;
   gap: 2px;
