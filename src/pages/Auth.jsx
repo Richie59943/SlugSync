@@ -1,10 +1,26 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+// Maps raw Supabase auth error messages to friendlier, user-facing text.
+// Falls back to the raw message for anything unmapped (e.g. Supabase's
+// email-enumeration protection can suppress the "already registered" error
+// entirely depending on project config, so an unmapped case must still show
+// something useful).
+function friendlyAuthError(message) {
+  const known = {
+    "Invalid login credentials": "Incorrect email or password.",
+    "User already registered": "An account with this email already exists.",
+    "Email not confirmed": "Please confirm your email before signing in.",
+    "Failed to fetch": "Couldn't reach the server. Check your connection and try again.",
+  };
+  return known[message] || message;
+}
+
 export default function Auth() {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
@@ -15,21 +31,33 @@ export default function Auth() {
     setMode(nextMode);
     setError(null);
     setMessage(null);
+    setPassword("");
+    setConfirmPassword("");
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setMessage(null);
 
+    if (!isSignIn && password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
+    setLoading(true);
+
     if (isSignIn) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError(error.message);
+      if (error) {
+        setError(friendlyAuthError(error.message));
+      } else {
+        window.location.hash = "";
+      }
     } else {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
-        setError(error.message);
+        setError(friendlyAuthError(error.message));
       } else {
         setMessage("Check your email to confirm your account, then sign in.");
       }
@@ -105,6 +133,22 @@ export default function Auth() {
               minLength={6}
             />
           </label>
+
+          {!isSignIn && (
+            <label className="auth-label">
+              Confirm Password
+              <input
+                className="auth-input"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                minLength={6}
+              />
+            </label>
+          )}
 
           {error && <p className="auth-error">{error}</p>}
           {message && <p className="auth-message">{message}</p>}
