@@ -284,6 +284,9 @@ select {
 }
 
 .event-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
   border: 1px solid #dce4ef;
   border-radius: 8px;
@@ -307,6 +310,29 @@ select {
 .event-card .event-when {
   color: #12233f;
   font-weight: 700;
+}
+
+/* ponytail: line-clamp adds the trailing … natively — no JS truncation needed,
+   the detail modal shows the full text */
+.event-card .event-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* keep line breaks the user typed into the description textarea */
+.event-detail-description {
+  white-space: pre-line;
+}
+
+.location-link {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.location-link:hover {
+  color: #1e40af;
 }
 
 .event-card-header {
@@ -393,6 +419,10 @@ select {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+  /* pins the buttons to the card bottom so they align across cards
+     with different description lengths */
+  margin-top: auto;
+  padding-top: 14px;
 }
 
 .delete-event-button {
@@ -502,8 +532,15 @@ select {
   margin: 0;
 }
 
-.confirm-dialog p:not(.eyebrow):not(.event-message) {
+.confirm-dialog p:not(.eyebrow):not(.event-message):not(.event-when) {
   color: #64748b;
+  margin: 10px 0 0;
+}
+
+/* the detail modal's date · time line matches the bold card style */
+.confirm-dialog .event-when {
+  color: #12233f;
+  font-weight: 700;
   margin: 10px 0 0;
 }
 
