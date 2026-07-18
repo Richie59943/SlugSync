@@ -1323,6 +1323,128 @@ select {
   flex: 1;
 }
 
+/* generic white card section — also picked up by Calendar's "panel ai-describe-box" */
+.panel {
+  background: #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(26, 39, 64, 0.08);
+  padding: 18px;
+}
+
+.panel h2 {
+  color: #12233f;
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+}
+
+.friend-search {
+  position: relative;
+}
+
+.friend-search-input {
+  background: #f4f7fb;
+  border: 1px solid #dce4ef;
+  border-radius: 12px;
+  color: #1f2937;
+  font-size: 1.05rem;
+  outline: none;
+  padding: 14px 18px;
+  transition: border-color 0.15s, background 0.15s;
+  width: 100%;
+}
+
+.friend-search-input:focus {
+  background: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.search-dropdown {
+  background: #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(26, 39, 64, 0.16);
+  left: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 4px 14px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+}
+
+.suggested-friends {
+  margin-top: 16px;
+}
+
+.suggested-friends h2 {
+  margin-bottom: 4px;
+}
+
+.friend-row {
+  align-items: center;
+  border-top: 1px solid #eef2f7;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.friend-row:first-of-type {
+  border-top: none;
+}
+
+.friend-row strong {
+  color: #12233f;
+}
+
+.friend-row p {
+  color: #64748b;
+  font-size: 0.86rem;
+  margin: 2px 0 0;
+}
+
+.friend-row-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.busy-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: 3rem repeat(7, 1fr);
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.busy-day-label,
+.busy-hour-label {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.busy-day-label {
+  text-align: center;
+}
+
+.busy-hour-label {
+  align-self: center;
+}
+
+.busy-cell {
+  background: #ecfdf5;
+  border-radius: 3px;
+  min-height: 22px;
+}
+
+.busy-cell.is-busy {
+  background: #4f46e5;
+}
+
 .ai-describe-box {
   padding: 1.25rem;
   margin-bottom: 1rem;

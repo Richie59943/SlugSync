@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Calendar from "./pages/Calendar";
+import Friends from "./pages/Friends";
 function Placeholder({ title, text }) {
   return (
     <main className="dashboard">
@@ -40,6 +41,9 @@ function App() {
           <a href="#/calendar" className={route === "calendar" ? "is-active" : ""}>
             Calendar
           </a>
+          <a href="#/friends" className={route === "friends" ? "is-active" : ""}>
+            Friends
+          </a>
           <a href="#/sources" className={route === "sources" ? "is-active" : ""}>
             Sources
           </a>
@@ -51,6 +55,8 @@ function App() {
 
       {route === "calendar" ? (
          <Calendar />
+      ) : route === "friends" ? (
+        <Friends />
       ) : route === "sources" ? (
         <Placeholder
           title="Sources"
