@@ -3,6 +3,9 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Calendar from "./pages/Calendar";
 import Friends from "./pages/Friends";
+import Auth from "./pages/Auth";
+import { useAuth } from "./context/AuthContext";
+
 function Placeholder({ title, text }) {
   return (
     <main className="dashboard">
@@ -19,6 +22,7 @@ function Placeholder({ title, text }) {
 
 function App() {
   const [hash, setHash] = useState(window.location.hash);
+  const { session, loading, signOut } = useAuth();
 
   useEffect(() => {
     const onChange = () => setHash(window.location.hash);
@@ -27,6 +31,22 @@ function App() {
   }, []);
 
   const route = hash.replace(/^#\/?/, "");
+
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <p className="empty-state">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="app-shell">
+        <Auth />
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -51,6 +71,9 @@ function App() {
             Profile
           </a>
         </div>
+        <button type="button" className="btn-signout" onClick={signOut}>
+          Sign Out
+        </button>
       </nav>
 
       {route === "calendar" ? (
