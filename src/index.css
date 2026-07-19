@@ -2418,6 +2418,154 @@ select:focus {
   gap: 0.75rem;
 }
 
+.digest-panel {
+  margin-bottom: 24px;
+}
+
+.digest-header {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.digest-toggle-header {
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  padding: 0;
+  text-align: left;
+}
+
+.digest-toggle-header h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.digest-arrow {
+  color: var(--color-text-muted);
+  display: inline-block;
+  font-size: 14px;
+  transition: transform 0.15s;
+}
+
+.digest-arrow.is-open {
+  transform: rotate(90deg);
+}
+
+.digest-range-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.digest-body {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.digest-summary-text {
+  color: var(--color-text);
+  font-size: 14.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.digest-summary-loading {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.digest-event-list {
+  display: grid;
+  gap: 2px;
+}
+
+.digest-qa {
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 16px;
+}
+
+.digest-qa-label {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.digest-qa-thread {
+  display: grid;
+  gap: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.digest-qa-message {
+  display: grid;
+  gap: 6px;
+}
+
+.digest-qa-bubble {
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 85%;
+  padding: 8px 12px;
+}
+
+.digest-qa-bubble-question {
+  background: var(--color-accent);
+  color: #ffffff;
+  justify-self: end;
+}
+
+.digest-qa-bubble-answer {
+  background: #f2f3f6;
+  color: var(--color-text);
+  justify-self: start;
+}
+
+.digest-qa-bubble-loading {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.digest-qa-bubble-error {
+  background: #fdf3f0;
+  color: #993c1d;
+  justify-self: start;
+}
+
+.digest-qa-composer {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.digest-qa-composer textarea {
+  flex: 1 1 auto;
+  min-height: 38px;
+  min-width: 0;
+  resize: vertical;
+}
+
+.digest-qa-composer .btn-primary {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  width: auto;
+}
+
 .btn-link {
   border: none;
   background: none;

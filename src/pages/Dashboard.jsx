@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import DailyDigest from "../components/DailyDigest";
 import EventForm from "../components/EventForm";
 import FilterNav from "../components/FilterNav";
 import PreferencesFilter from "../components/PreferencesFilter";
@@ -501,6 +502,14 @@ function Dashboard() {
           around campus and town — browse, filter by category, or add your own.
         </p>
       </section>
+
+      {currentUserId && (
+        <DailyDigest
+          communityEvents={[...communityEventsWithoutDuplicates, ...ucscEvents]}
+          currentUserId={currentUserId}
+          personalEvents={personalEvents}
+        />
+      )}
 
       {featuredEvent && (() => {
         const cat = getCategoryStyle(featuredEvent);
