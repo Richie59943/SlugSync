@@ -364,6 +364,12 @@ function Friends() {
                     {group.members.length} member
                     {group.members.length === 1 ? "" : "s"}
                   </p>
+                  <a
+                    className="btn-secondary group-calendar-link"
+                    href={`#/calendar/groups/${group.id}`}
+                  >
+                    Open calendar
+                  </a>
                 </div>
                 <div className="group-member-stack" aria-label="Group members">
                   {group.members.slice(0, 5).map((member) => (

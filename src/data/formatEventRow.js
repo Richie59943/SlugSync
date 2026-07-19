@@ -29,6 +29,11 @@ export function formatEventRow(row) {
     location: row.location,
     source: row.source,
     visibility: normalizeEventVisibility(row.visibility),
+    calendarScope: row.calendarScope ?? "personal",
+    groupId: row.groupId ?? null,
+    groupName: row.groupName ?? null,
+    sharedBy: row.sharedBy ?? null,
+    groupShares: row.groupShares ?? [],
     // Not in the real events table yet — undefined until the optional
     // migration in src/lib/supabase/schema.sql lands. matchesPreferences
     // treats missing fields as "no match" rather than crashing.

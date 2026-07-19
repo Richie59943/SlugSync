@@ -1018,6 +1018,10 @@ select:focus {
   font-weight: 600;
 }
 
+.calendar-panel .calendar-event-group {
+  border-left: 3px solid #0f766e;
+}
+
 .calendar-panel .fc-daygrid-day-frame {
   min-height: 104px;
 }
@@ -1026,8 +1030,129 @@ select:focus {
   font-family: var(--font-display);
 }
 
+.calendar-group-label,
+.calendar-detail-meta {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.calendar-group-list {
+  display: grid;
+  gap: 8px;
+}
+
+.calendar-group-list a {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 9px 10px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.calendar-group-list a:hover,
+.calendar-group-list a.is-active {
+  background: #effaf8;
+  border-color: #8ad8cf;
+}
+
+.event-group-sharing {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.event-form .calendar-create-share-option {
+  align-items: flex-start;
+  background: #f8fbfb;
+  border: 1px solid #cfe9e5;
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 12px;
+}
+
+.calendar-create-share-option input {
+  margin-top: 3px;
+  width: auto;
+}
+
+.calendar-create-share-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.calendar-create-share-option small {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.event-group-sharing h3 {
+  color: var(--color-text);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.event-group-sharing p {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  margin: 3px 0 0;
+}
+
+.shared-group-list {
+  display: grid;
+  gap: 8px;
+}
+
+.shared-group-row,
+.share-group-controls {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.shared-group-row {
+  align-items: center;
+}
+
+.shared-group-row span {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-group-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.share-group-controls .btn-primary,
+.shared-group-row .btn-secondary {
+  width: auto;
+}
+
 @media (max-width: 900px) {
   .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .shared-group-row,
+  .share-group-controls {
     grid-template-columns: 1fr;
   }
 }
@@ -2127,6 +2252,12 @@ select:focus {
 
 .group-card-meta {
   font-weight: 700;
+}
+
+.group-calendar-link {
+  display: inline-flex;
+  margin-top: 10px;
+  width: auto;
 }
 
 .group-member-stack {
