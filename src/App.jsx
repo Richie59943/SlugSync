@@ -92,6 +92,10 @@ function App() {
   }, []);
 
   const route = hash.replace(/^#\/?/, "");
+  const groupCalendarMatch =
+    route.match(/^calendar\/groups\/([^/]+)$/) ??
+    route.match(/^groups\/([^/]+)\/calendar$/);
+  const groupCalendarId = groupCalendarMatch?.[1] ?? null;
 
   if (loading) {
     return (
@@ -116,6 +120,8 @@ function App() {
 
         {route === "calendar" ? (
           <Calendar />
+        ) : groupCalendarId ? (
+          <Calendar groupId={groupCalendarId} />
         ) : route === "friends" ? (
           <Friends />
         ) : route === "sources" ? (

@@ -152,6 +152,7 @@ function EventForm({
   isLoading = false,
   error = null,
   missingFields = [],
+  children = null,
 }) {
   const [form, setForm] = useState(() => normalizeFormData(initialData));
   const [errors, setErrors] = useState({});
@@ -278,6 +279,7 @@ function EventForm({
           ))}
         </div>
       </fieldset>
+      {children}
       {error && <p className="event-message event-message-error">{error}</p>}
       <div className="confirm-actions">
         <button
