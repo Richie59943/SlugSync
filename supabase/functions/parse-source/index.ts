@@ -163,6 +163,38 @@ ${text.slice(0, MAX_TEXT_CHARS)}`;
   if (!geminiRes.ok) {
     const errBody = await geminiRes.text();
     console.error("Gemini API error:", errBody);
+
+    if (geminiRes.status === 429) {
+      // Google's 429 body tells us which quota was hit — a per-day cap
+      // needs a very different message than a short-term rate limit, since
+      // "try again in a bit" is actively misleading for a daily cap.
+      let isDailyQuota = false;
+      try {
+        const parsedErr = JSON.parse(errBody);
+        const violations = parsedErr?.error?.details?.find(
+          (d: { violations?: unknown }) => Array.isArray(d.violations),
+        )?.violations as Array<{ quotaId?: string }> | undefined;
+        isDailyQuota = Boolean(
+          violations?.some((v) => v.quotaId?.includes("PerDay")),
+        );
+      } catch {
+        // Couldn't parse the body — fall back to the generic rate-limit message below.
+      }
+
+      if (isDailyQuota) {
+        return {
+          ok: false as const,
+          error:
+            "The AI service has hit its daily free-tier limit. Try again tomorrow, or ask the site owner to upgrade the AI plan for higher limits.",
+        };
+      }
+
+      return {
+        ok: false as const,
+        error: "The AI service is getting a lot of requests right now. Please try again in about a minute.",
+      };
+    }
+
     return { ok: false as const, error: "The AI service returned an error." };
   }
 
