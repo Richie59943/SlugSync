@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Calendar from "./pages/Calendar";
 import Friends from "./pages/Friends";
+import Sources from "./pages/Sources";
 import Auth from "./pages/Auth";
 import { useAuth } from "./context/AuthContext";
 import { QuickAddProvider, useQuickAdd } from "./context/QuickAddContext";
@@ -211,10 +212,7 @@ function App() {
         ) : route === "friends" ? (
           <Friends />
         ) : route === "sources" ? (
-          <Placeholder
-            title="Sources"
-            text="Discord and Instagram event sources land in a later sprint."
-          />
+          <Sources />
         ) : route === "profile" ? (
           <Profile />
         ) : (
