@@ -95,10 +95,15 @@ function TimePicker({ label, value, onChange, error }) {
         />
       ) : (
         <div className="time-picker-selects">
-          <select onChange={(e) => update("hour", e.target.value)} value={parts.hour}>
+          <select
+            onChange={(e) => update("hour", e.target.value)}
+            value={parts.hour}
+          >
             <option value="">--</option>
             {HOURS.map((h) => (
-              <option key={h} value={String(h)}>{h}</option>
+              <option key={h} value={String(h)}>
+                {h}
+              </option>
             ))}
           </select>
           <select
@@ -108,10 +113,15 @@ function TimePicker({ label, value, onChange, error }) {
           >
             <option value="">--</option>
             {minuteOptionsFor(parts.minute).map((m) => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </select>
-          <select onChange={(e) => update("ampm", e.target.value)} value={parts.ampm}>
+          <select
+            onChange={(e) => update("ampm", e.target.value)}
+            value={parts.ampm}
+          >
             <option value="">--</option>
             <option value="AM">AM</option>
             <option value="PM">PM</option>
@@ -186,7 +196,10 @@ function EventForm({
 
   function handleField(field) {
     return (event) => {
-      setForm((currentForm) => ({ ...currentForm, [field]: event.target.value }));
+      setForm((currentForm) => ({
+        ...currentForm,
+        [field]: event.target.value,
+      }));
       setErrors((currentErrors) => ({ ...currentErrors, [field]: null }));
     };
   }
@@ -316,7 +329,9 @@ function EventForm({
               aria-pressed={form.color === hex}
               className={`color-swatch${form.color === hex ? " is-selected" : ""}`}
               key={hex}
-              onClick={() => setForm((currentForm) => ({ ...currentForm, color: hex }))}
+              onClick={() =>
+                setForm((currentForm) => ({ ...currentForm, color: hex }))
+              }
               style={{ background: hex }}
               type="button"
             />
@@ -324,13 +339,17 @@ function EventForm({
           <label className="color-swatch-custom" title="Custom color">
             <input
               onChange={(e) =>
-                setForm((currentForm) => ({ ...currentForm, color: e.target.value }))
+                setForm((currentForm) => ({
+                  ...currentForm,
+                  color: e.target.value,
+                }))
               }
               type="color"
               value={form.color || "#8a92a3"}
             />
           </label>
         </div>
+      </fieldset>
       <fieldset className="group-share-fieldset">
         <legend>Share with groups</legend>
         <p>
