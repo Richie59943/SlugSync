@@ -4,6 +4,7 @@ import {
   digestHeading,
   digestPeriodLabel,
   filterEventsInRange,
+  groupEventsByWeekday,
   isEventInRange,
 } from "./digestRange";
 
@@ -51,5 +52,32 @@ describe("filterEventsInRange", () => {
       { id: 3, eventDate: "2026-08-02" },
     ];
     expect(filterEventsInRange(events, DIGEST_RANGES.WEEKLY, NOW).map((e) => e.id)).toEqual([1, 2]);
+  });
+});
+
+describe("groupEventsByWeekday", () => {
+  it("always returns 7 days starting from today, regardless of weekday", () => {
+    const days = groupEventsByWeekday([], NOW);
+    expect(days).toHaveLength(7);
+    expect(days[0]).toMatchObject({ dateKey: "2026-07-15", label: "Wednesday", shortDate: "Jul 15" });
+    expect(days[6]).toMatchObject({ dateKey: "2026-07-21", label: "Tuesday", shortDate: "Jul 21" });
+  });
+
+  it("buckets events onto their matching day and leaves other days empty", () => {
+    const events = [
+      { id: 1, eventDate: "2026-07-15" },
+      { id: 2, eventDate: "2026-07-15" },
+      { id: 3, eventDate: "2026-07-18" },
+    ];
+    const days = groupEventsByWeekday(events, NOW);
+    expect(days[0].events.map((e) => e.id)).toEqual([1, 2]);
+    expect(days[3].events.map((e) => e.id)).toEqual([3]);
+    expect(days[1].events).toEqual([]);
+  });
+
+  it("drops events outside the 7-day window", () => {
+    const events = [{ id: 1, eventDate: "2026-07-22" }];
+    const days = groupEventsByWeekday(events, NOW);
+    expect(days.every((day) => day.events.length === 0)).toBe(true);
   });
 });

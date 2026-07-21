@@ -28,6 +28,10 @@ export function todayString(now = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+export function todayWeekday(now = new Date()) {
+  return now.toLocaleDateString("en-US", { weekday: "long" });
+}
+
 function startOfDay(date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
@@ -70,4 +74,29 @@ export function isEventInRange(event, range, now = new Date()) {
 
 export function filterEventsInRange(events, range, now = new Date()) {
   return (events ?? []).filter((event) => isEventInRange(event, range, now));
+}
+
+// Buckets already-filtered weekly events into the 7 days of the rolling
+// weekly window (today → today+6), so the weekly grid always shows 7
+// columns — including empty ones — regardless of which weekday "today" is.
+export function groupEventsByWeekday(events, now = new Date()) {
+  const { start } = getRangeWindow(DIGEST_RANGES.WEEKLY, now);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + i);
+    days.push({
+      dateKey: todayString(date),
+      label: date.toLocaleDateString("en-US", { weekday: "long" }),
+      shortDate: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      events: [],
+    });
+  }
+
+  const byDateKey = Object.fromEntries(days.map((day) => [day.dateKey, day]));
+  (events ?? []).forEach((event) => {
+    byDateKey[event.eventDate]?.events.push(event);
+  });
+
+  return days;
 }
