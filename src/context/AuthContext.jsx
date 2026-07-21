@@ -9,7 +9,7 @@ const AuthContext = createContext(undefined);
 async function fetchProfileSlice(userId) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("avatar_url, full_name, username")
+    .select("avatar_url, full_name, username, onboarding_completed")
     .eq("id", userId)
     .maybeSingle();
 
@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const refreshProfile = useCallback(async (userId) => {
     const id = userId ?? session?.user?.id;
@@ -59,11 +60,15 @@ export function AuthProvider({ children }) {
 
     if (!session?.user?.id) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
 
+    setProfileLoading(true);
     fetchProfileSlice(session.user.id).then((slice) => {
-      if (!cancelled) setProfile(slice);
+      if (cancelled) return;
+      setProfile(slice);
+      setProfileLoading(false);
     });
 
     return () => {
@@ -81,6 +86,7 @@ export function AuthProvider({ children }) {
     loading,
     signOut,
     profile,
+    profileLoading,
     refreshProfile,
   };
 
