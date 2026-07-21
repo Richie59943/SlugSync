@@ -8,7 +8,9 @@ import {
   digestHeading,
   digestPeriodLabel,
   filterEventsInRange,
+  groupEventsByWeekday,
   todayString,
+  todayWeekday,
 } from "../data/digestRange";
 
 function sortByDate(events) {
@@ -28,11 +30,76 @@ function toDigestEventPayload(event) {
   };
 }
 
+function DigestEventList({ events, period }) {
+  if (events.length === 0) {
+    return (
+      <p className="empty-state" style={{ textAlign: "left", margin: 0 }}>
+        No events {period}.
+      </p>
+    );
+  }
+
+  return (
+    <div className="digest-event-list">
+      {events.map((event) => {
+        const cat = getCategoryStyle(event);
+        return (
+          <div className="schedule-row" key={`${event.source}-${event.id}`}>
+            <span className="schedule-time">{event.date} · {event.time}</span>
+            <div className="schedule-detail" style={{ borderLeftColor: cat.dot }}>
+              <strong>{event.title}</strong>
+              {event.location && <span>{event.location}</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DigestWeekGrid({ events }) {
+  const days = groupEventsByWeekday(events);
+
+  return (
+    <div className="digest-week-grid">
+      {days.map((day) => (
+        <div className="digest-week-day" key={day.dateKey}>
+          <div className="digest-week-day-header">
+            <span className="digest-week-day-name">{day.label}</span>
+            <span className="digest-week-day-date">{day.shortDate}</span>
+          </div>
+
+          {day.events.length === 0 ? (
+            <p className="digest-week-day-empty">No events</p>
+          ) : (
+            <div className="digest-week-day-events">
+              {day.events.map((event) => {
+                const cat = getCategoryStyle(event);
+                return (
+                  <div
+                    className="digest-week-event"
+                    key={`${event.source}-${event.id}`}
+                    style={{ borderLeftColor: cat.dot }}
+                  >
+                    <span className="digest-week-event-time">{event.time}</span>
+                    <strong className="digest-week-event-title">{event.title}</strong>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DailyDigest({ personalEvents, communityEvents, currentUserId }) {
   const [expanded, setExpanded] = useState(false);
   const [range, setRange] = useState(DIGEST_RANGES.DAILY);
 
   const [interests, setInterests] = useState({ clubs: [], classes: [] });
+  const [year, setYear] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
 
   const [summary, setSummary] = useState("");
@@ -58,12 +125,13 @@ function DailyDigest({ personalEvents, communityEvents, currentUserId }) {
 
     supabase
       .from("profiles")
-      .select("clubs, classes")
+      .select("clubs, classes, year")
       .eq("id", currentUserId)
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
         setInterests({ clubs: data?.clubs ?? [], classes: data?.classes ?? [] });
+        setYear(data?.year ?? "");
         setProfileLoaded(true);
       });
 
@@ -105,6 +173,8 @@ function DailyDigest({ personalEvents, communityEvents, currentUserId }) {
               mode: "summary",
               range,
               today: todayString(),
+              todayWeekday: todayWeekday(),
+              year,
               events: rangeEvents.map(toDigestEventPayload),
               interests,
             }),
@@ -188,6 +258,8 @@ function DailyDigest({ personalEvents, communityEvents, currentUserId }) {
             mode: "qa",
             range,
             today: todayString(),
+            todayWeekday: todayWeekday(),
+            year,
             events: rangeEvents.map(toDigestEventPayload),
             interests,
             question: trimmed,
@@ -263,25 +335,9 @@ function DailyDigest({ personalEvents, communityEvents, currentUserId }) {
             <p className="digest-summary-text">{summary}</p>
           )}
 
-          {rangeEvents.length === 0 ? (
-            <p className="empty-state" style={{ textAlign: "left", margin: 0 }}>
-              No events {digestPeriodLabel(range)}.
-            </p>
-          ) : (
-            <div className="digest-event-list">
-              {rangeEvents.map((event) => {
-                const cat = getCategoryStyle(event);
-                return (
-                  <div className="schedule-row" key={`${event.source}-${event.id}`}>
-                    <span className="schedule-time">{event.time}</span>
-                    <div className="schedule-detail" style={{ borderLeftColor: cat.dot }}>
-                      <strong>{event.title}</strong>
-                      {event.location && <span>{event.location}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {range === DIGEST_RANGES.WEEKLY && <DigestWeekGrid events={rangeEvents} />}
+          {range === DIGEST_RANGES.DAILY && (
+            <DigestEventList events={rangeEvents} period={digestPeriodLabel(range)} />
           )}
 
           <div className="digest-qa">
