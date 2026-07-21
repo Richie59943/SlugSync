@@ -1055,6 +1055,62 @@ select:disabled {
   line-height: 1.4;
 }
 
+.color-fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+}
+
+.color-fieldset legend {
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 0 4px;
+}
+
+.color-options {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.color-swatch {
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 28px;
+  padding: 0;
+  width: 28px;
+}
+
+.color-swatch.is-selected {
+  border-color: var(--color-text);
+}
+
+.color-swatch-custom {
+  align-items: center;
+  border: 1px dashed var(--color-border);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  overflow: hidden;
+  width: 28px;
+}
+
+.color-swatch-custom input[type="color"] {
+  border: none;
+  cursor: pointer;
+  height: 40px;
+  padding: 0;
+  width: 40px;
+}
+
 .field-error {
   color: var(--color-error-text);
   font-size: 0.78rem;
@@ -1216,7 +1272,7 @@ select:disabled {
   --fc-page-bg-color: var(--color-surface);
   --fc-neutral-bg-color: var(--color-surface-soft);
   --fc-neutral-text-color: var(--color-text-secondary);
-  --fc-today-bg-color: var(--color-accent-soft);
+  --fc-today-bg-color: var(--color-surface-soft);
   --fc-event-text-color: #ffffff;
   --fc-list-event-hover-bg-color: var(--color-surface-soft);
 }
@@ -1245,6 +1301,10 @@ select:disabled {
 }
 
 .calendar-panel .fc-day-today {
+  background: var(--color-surface-soft) !important;
+}
+
+.calendar-panel .calendar-day-selected {
   background: var(--color-accent-soft) !important;
 }
 

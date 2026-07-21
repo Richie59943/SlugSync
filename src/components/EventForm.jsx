@@ -13,11 +13,23 @@ const emptyForm = {
   endTime: "",
   location: "",
   visibility: EVENT_VISIBILITY.PRIVATE,
+  color: "",
   groupIds: [],
 };
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const MINUTES = ["00", "15", "30", "45"];
+
+const COLOR_PRESETS = [
+  "#f44e32",
+  "#e0912b",
+  "#e04e93",
+  "#7c56f0",
+  "#3b6fe0",
+  "#1aa89b",
+  "#23a35f",
+  "#8a92a3",
+];
 
 // Existing events may have been saved with a minute outside the 15-minute
 // set (e.g. from before this change, or an external import). Keep that exact
@@ -120,6 +132,7 @@ function normalizeFormData(data) {
     endTime: data?.endTime ?? "",
     location: data?.location ?? "",
     visibility: normalizeEventVisibility(data?.visibility),
+    color: data?.color ?? "",
     groupIds: data?.groupIds ?? [],
   };
 }
@@ -294,6 +307,30 @@ function EventForm({
           ))}
         </div>
       </fieldset>
+      <fieldset className="color-fieldset">
+        <legend>Event color</legend>
+        <div className="color-options">
+          {COLOR_PRESETS.map((hex) => (
+            <button
+              aria-label={`Color ${hex}`}
+              aria-pressed={form.color === hex}
+              className={`color-swatch${form.color === hex ? " is-selected" : ""}`}
+              key={hex}
+              onClick={() => setForm((currentForm) => ({ ...currentForm, color: hex }))}
+              style={{ background: hex }}
+              type="button"
+            />
+          ))}
+          <label className="color-swatch-custom" title="Custom color">
+            <input
+              onChange={(e) =>
+                setForm((currentForm) => ({ ...currentForm, color: e.target.value }))
+              }
+              type="color"
+              value={form.color || "#8a92a3"}
+            />
+          </label>
+        </div>
       <fieldset className="group-share-fieldset">
         <legend>Share with groups</legend>
         <p>
