@@ -5,6 +5,7 @@ import Calendar from "./pages/Calendar";
 import Friends from "./pages/Friends";
 import Sources from "./pages/Sources";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import { useAuth } from "./context/AuthContext";
 import { QuickAddProvider, useQuickAdd } from "./context/QuickAddContext";
 import { useTheme } from "./context/ThemeContext";
@@ -170,7 +171,7 @@ function Nav({ route, email, profile, onSignOut }) {
 
 function App() {
   const [hash, setHash] = useState(window.location.hash);
-  const { session, loading, signOut, profile } = useAuth();
+  const { session, loading, signOut, profile, profileLoading } = useAuth();
 
   useEffect(() => {
     const onChange = () => setHash(window.location.hash);
@@ -196,6 +197,22 @@ function App() {
     return (
       <div className="app-shell">
         <Auth />
+      </div>
+    );
+  }
+
+  if (profileLoading) {
+    return (
+      <div className="app-shell">
+        <p className="empty-state">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!profile?.onboarding_completed) {
+    return (
+      <div className="app-shell">
+        <Onboarding />
       </div>
     );
   }
