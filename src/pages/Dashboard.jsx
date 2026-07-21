@@ -9,8 +9,10 @@ import {
   deleteEvent,
   fetchCommunityEvents,
   fetchEvents,
+  syncEventGroups,
   updateEvent,
 } from "../data/eventService";
+import { fetchGroups } from "../data/groupService";
 import { formatEventRow } from "../data/formatEventRow";
 import { fetchUcscEvents } from "../data/ucscEvents";
 import { matchesPreferences } from "../data/matchesPreferences";
@@ -182,6 +184,7 @@ function Dashboard() {
   const [personalEvents, setPersonalEvents] = useState([]);
   const [publicEvents, setPublicEvents] = useState([]);
   const [ucscEvents, setUcscEvents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [ucscError, setUcscError] = useState(null);
 
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -223,6 +226,9 @@ function Dashboard() {
         setCurrentUserId(user?.id ?? null);
         setCurrentUserEmail(user?.email ?? null);
         setPersonalEvents(events.map(toPersonalEvent));
+        const { groups: nextGroups } = await fetchGroups();
+        if (cancelled) return;
+        setGroups(nextGroups);
       } catch (fetchError) {
         // ponytail: supabase reports "Auth session missing" when signed out —
         // that's a normal state, not a load failure
@@ -309,6 +315,7 @@ function Dashboard() {
         const updated = toPersonalEvent(
           await updateEvent(eventToEdit.id, eventInput),
         );
+        await syncEventGroups(eventToEdit.id, eventInput.groupIds);
         setPersonalEvents((events) =>
           events.map((event) => (event.id === updated.id ? updated : event)),
         );
@@ -318,6 +325,9 @@ function Dashboard() {
         setMessage(`Updated "${updated.title}".`);
       } else {
         const created = await createEvent(eventInput);
+        if (eventInput.groupIds?.length > 0) {
+          await syncEventGroups(created.id, eventInput.groupIds);
+        }
         setPersonalEvents((events) => [...events, toPersonalEvent(created)]);
         setCurrentUserId(created.user_id);
         setMessage(`Created "${created.title}".`);
@@ -834,7 +844,11 @@ function Dashboard() {
             </h2>
             <EventForm
               error={formError}
-              initialData={eventToEdit}
+              groups={groups}
+              initialData={{
+                ...eventToEdit,
+                groupIds: eventToEdit?.groupShares?.map((share) => share.groupId) ?? [],
+              }}
               isLoading={savingEvent}
               mode={eventToEdit ? "edit" : "add"}
               onCancel={closeModal}

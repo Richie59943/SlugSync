@@ -8,8 +8,7 @@ import {
   createEvent,
   deleteEvent,
   fetchCalendarEvents,
-  removeEventFromGroup,
-  shareEventWithGroup,
+  syncEventGroups,
   updateEvent,
 } from "../data/eventService";
 import { fetchGroups } from "../data/groupService";
@@ -81,10 +80,6 @@ function Calendar({ groupId = null }) {
   const [eventToView, setEventToView] = useState(null);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [deletingEventId, setDeletingEventId] = useState(null);
-  const [selectedShareGroupId, setSelectedShareGroupId] = useState("");
-  const [shareNewEventWithGroup, setShareNewEventWithGroup] = useState(false);
-  const [sharingEventId, setSharingEventId] = useState(null);
-  const [removingGroupId, setRemovingGroupId] = useState(null);
   const [missingFields, setMissingFields] = useState([]);
 
   // AI describe box
@@ -156,29 +151,6 @@ function Calendar({ groupId = null }) {
     };
   }, [loadCalendarData]);
 
-  const activeGroupShares = useMemo(() => {
-    if (!eventToEdit?.id) return [];
-    return eventToEdit.groupShares ?? [];
-  }, [eventToEdit]);
-
-  const activeGroupIds = useMemo(
-    () => new Set(activeGroupShares.map((share) => share.groupId)),
-    [activeGroupShares],
-  );
-
-  const availableShareGroups = useMemo(
-    () => groups.filter((group) => !activeGroupIds.has(group.id)),
-    [activeGroupIds, groups],
-  );
-
-  useEffect(() => {
-    if (!eventToEdit?.id) {
-      setSelectedShareGroupId("");
-      return;
-    }
-    setSelectedShareGroupId(availableShareGroups[0]?.id ?? "");
-  }, [eventToEdit?.id, availableShareGroups]);
-
   function openAiBox() {
     setShowAiBox(true);
     setAiText("");
@@ -197,7 +169,6 @@ function Calendar({ groupId = null }) {
     setMissingFields([]);
     setEventToEdit({});
     setEventToView(null);
-    setShareNewEventWithGroup(false);
     setFormError(null);
     setMessage(null);
   }
@@ -205,7 +176,6 @@ function Calendar({ groupId = null }) {
   function closeForm() {
     setEventToEdit(null);
     setEventToView(null);
-    setShareNewEventWithGroup(false);
     setFormError(null);
     setMissingFields([]);
   }
@@ -252,7 +222,6 @@ function Calendar({ groupId = null }) {
 
       // Map the AI's shape onto the shape EventForm expects
       setMissingFields(gaps);
-      setShareNewEventWithGroup(false);
       setEventToEdit({
         title: parsed.title || "",
         description: "",
@@ -316,26 +285,18 @@ function Calendar({ groupId = null }) {
         const updated = formatEventRow(
           await updateEvent(eventToEdit.id, eventInput),
         );
-        setEvents((currentEvents) =>
-          currentEvents.map((event) => {
-            if (event.id !== updated.id) return event;
-            return {
-              ...updated,
-              calendarScope: event.calendarScope,
-              groupId: event.groupId,
-              groupName: event.groupName,
-              sharedBy: event.sharedBy,
-              groupShares: event.groupShares,
-            };
-          }),
-        );
+        await syncEventGroups(eventToEdit.id, eventInput.groupIds);
+        applyCalendarData(await loadCalendarData());
         setMessage(`Updated "${updated.title}".`);
       } else {
         const created = formatEventRow(await createEvent(eventInput));
-        if (groupId && shareNewEventWithGroup) {
-          await shareEventWithGroup(created.id, groupId);
+        if (eventInput.groupIds?.length > 0) {
+          await syncEventGroups(created.id, eventInput.groupIds);
           applyCalendarData(await loadCalendarData());
-          setMessage(`Created "${created.title}" and shared it with ${selectedGroup?.name || "this group"}.`);
+          setMessage(`Created "${created.title}" and updated group sharing.`);
+        } else if (groupId) {
+          applyCalendarData(await loadCalendarData());
+          setMessage(`Created "${created.title}".`);
         } else {
           setEvents((currentEvents) => [...currentEvents, created]);
           setCurrentUserId(created.userId);
@@ -347,45 +308,6 @@ function Calendar({ groupId = null }) {
       setFormError(submitError.message);
     } finally {
       setSavingEvent(false);
-    }
-  }
-
-  async function handleShareWithGroup() {
-    if (!eventToEdit?.id || !selectedShareGroupId) return;
-
-    const group = groups.find((item) => item.id === selectedShareGroupId);
-    setSharingEventId(eventToEdit.id);
-    setFormError(null);
-    setMessage(null);
-
-    try {
-      await shareEventWithGroup(eventToEdit.id, selectedShareGroupId);
-      applyCalendarData(await loadCalendarData());
-      setMessage(`Shared "${eventToEdit.title}" with ${group?.name || "that group"}.`);
-      closeForm();
-    } catch (shareError) {
-      setFormError(shareError.message);
-    } finally {
-      setSharingEventId(null);
-    }
-  }
-
-  async function handleRemoveFromGroup(targetGroupId) {
-    if (!eventToEdit?.id || !targetGroupId) return;
-
-    setRemovingGroupId(targetGroupId);
-    setFormError(null);
-    setMessage(null);
-
-    try {
-      await removeEventFromGroup(eventToEdit.id, targetGroupId);
-      applyCalendarData(await loadCalendarData());
-      setMessage(`Removed "${eventToEdit.title}" from the group calendar.`);
-      closeForm();
-    } catch (removeError) {
-      setFormError(removeError.message);
-    } finally {
-      setRemovingGroupId(null);
     }
   }
 
@@ -654,93 +576,17 @@ function Calendar({ groupId = null }) {
             )}
             <EventForm
               error={formError}
-              initialData={eventToEdit}
+              groups={groups}
+              initialData={{
+                ...eventToEdit,
+                groupIds: eventToEdit.groupShares?.map((share) => share.groupId) ?? [],
+              }}
               isLoading={savingEvent}
               missingFields={missingFields}
               mode={eventToEdit.id ? "edit" : "add"}
               onCancel={closeForm}
               onSubmit={handleSubmitEvent}
-            >
-              {!eventToEdit.id && groupId && selectedGroup?.name && (
-                <label className="calendar-create-share-option">
-                  <input
-                    checked={shareNewEventWithGroup}
-                    disabled={savingEvent}
-                    onChange={(e) => setShareNewEventWithGroup(e.target.checked)}
-                    type="checkbox"
-                  />
-                  <span>
-                    <strong>Share with {selectedGroup.name}</strong>
-                    <small>
-                      Adds this event to the group calendar. Leave off to keep it only on your calendar.
-                    </small>
-                  </span>
-                </label>
-              )}
-            </EventForm>
-            {eventToEdit.id && (
-              <section className="event-group-sharing" aria-label="Group sharing">
-                <div>
-                  <h3>Group calendars</h3>
-                  <p>Share this event with a group calendar you belong to.</p>
-                </div>
-
-                {activeGroupShares.length > 0 && (
-                  <div className="shared-group-list">
-                    {activeGroupShares.map((share) => (
-                      <div className="shared-group-row" key={share.groupId}>
-                        <span>{share.groupName}</span>
-                        <button
-                          className="btn-secondary"
-                          disabled={removingGroupId === share.groupId || savingEvent}
-                          onClick={() => handleRemoveFromGroup(share.groupId)}
-                          type="button"
-                        >
-                          {removingGroupId === share.groupId ? "Removing..." : "Remove"}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {availableShareGroups.length > 0 ? (
-                  <div className="share-group-controls">
-                    <label>
-                      Share with
-                      <select
-                        disabled={sharingEventId === eventToEdit.id || savingEvent}
-                        onChange={(e) => setSelectedShareGroupId(e.target.value)}
-                        value={selectedShareGroupId}
-                      >
-                        {availableShareGroups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      className="btn-primary"
-                      disabled={
-                        !selectedShareGroupId ||
-                        sharingEventId === eventToEdit.id ||
-                        savingEvent
-                      }
-                      onClick={handleShareWithGroup}
-                      type="button"
-                    >
-                      {sharingEventId === eventToEdit.id ? "Sharing..." : "Share"}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="calendar-detail-meta">
-                    {groups.length === 0
-                      ? "Create a group first to share this event."
-                      : "This event is already shared with all of your groups."}
-                  </p>
-                )}
-              </section>
-            )}
+            />
             {eventToEdit.id && (
               <button
                 className="calendar-delete-button"
