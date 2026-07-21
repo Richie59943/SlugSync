@@ -213,6 +213,70 @@ export async function shareEventWithGroup(eventId, groupId) {
   return data;
 }
 
+export async function fetchEventGroupIds(eventId) {
+  if (!eventId) {
+    throw new Error("Missing event id. Group sharing could not be loaded.");
+  }
+
+  const { data, error } = await supabase
+    .from("group_events")
+    .select("group_id")
+    .eq("event_id", eventId);
+
+  if (error) {
+    throw new Error(error.message || "Unable to load this event's groups.");
+  }
+
+  return (data ?? []).map((row) => row.group_id);
+}
+
+export async function syncEventGroups(eventId, selectedGroupIds) {
+  if (!eventId) {
+    throw new Error("Missing event id. Group sharing could not be updated.");
+  }
+
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to update group sharing.");
+  }
+
+  const requestedGroupIds = [...new Set(selectedGroupIds ?? [])].filter(Boolean);
+  const currentGroupIds = await fetchEventGroupIds(eventId);
+  const currentSet = new Set(currentGroupIds);
+  const requestedSet = new Set(requestedGroupIds);
+  const groupIdsToAdd = requestedGroupIds.filter((groupId) => !currentSet.has(groupId));
+  const groupIdsToRemove = currentGroupIds.filter((groupId) => !requestedSet.has(groupId));
+
+  if (groupIdsToAdd.length > 0) {
+    const rows = groupIdsToAdd.map((groupId) => ({
+      event_id: eventId,
+      group_id: groupId,
+      shared_by: user.id,
+    }));
+
+    const { error } = await supabase.from("group_events").insert(rows);
+
+    if (error) {
+      throw new Error(error.message || "Unable to share this event with the selected groups.");
+    }
+  }
+
+  if (groupIdsToRemove.length > 0) {
+    const { error } = await supabase
+      .from("group_events")
+      .delete()
+      .eq("event_id", eventId)
+      .in("group_id", groupIdsToRemove);
+
+    if (error) {
+      throw new Error(error.message || "Unable to remove this event from the selected groups.");
+    }
+  }
+
+  return requestedGroupIds;
+}
+
 export async function removeEventFromGroup(eventId, groupId) {
   if (!eventId || !groupId) {
     throw new Error("Missing event or group. The event could not be removed.");

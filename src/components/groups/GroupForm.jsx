@@ -19,18 +19,29 @@ function validateForm(form) {
 
 function GroupForm({
   friends = [],
+  initialData = emptyForm,
+  mode = "create",
   onCancel,
   onSubmit,
   isLoading = false,
   error = null,
 }) {
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => ({
+    ...emptyForm,
+    ...initialData,
+    memberIds: initialData.memberIds ?? [],
+  }));
   const [errors, setErrors] = useState({});
+  const isEditMode = mode === "edit";
 
   useEffect(() => {
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      ...initialData,
+      memberIds: initialData.memberIds ?? [],
+    });
     setErrors({});
-  }, []);
+  }, [initialData]);
 
   function handleField(field) {
     return (event) => {
@@ -89,11 +100,13 @@ function GroupForm({
         />
       </label>
 
-      <MemberSelector
-        friends={friends}
-        onChange={handleMembersChange}
-        selectedIds={form.memberIds}
-      />
+      {!isEditMode && (
+        <MemberSelector
+          friends={friends}
+          onChange={handleMembersChange}
+          selectedIds={form.memberIds}
+        />
+      )}
 
       {error && <p className="event-message event-message-error">{error}</p>}
 
@@ -107,7 +120,13 @@ function GroupForm({
           Cancel
         </button>
         <button className="btn-primary" disabled={isLoading} type="submit">
-          {isLoading ? "Creating..." : "Create group"}
+          {isLoading
+            ? isEditMode
+              ? "Saving..."
+              : "Creating..."
+            : isEditMode
+              ? "Save changes"
+              : "Create group"}
         </button>
       </div>
     </form>
