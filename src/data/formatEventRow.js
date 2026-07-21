@@ -29,6 +29,7 @@ export function formatEventRow(row) {
     location: row.location,
     source: row.source,
     visibility: normalizeEventVisibility(row.visibility),
+    color: row.color ?? null,
     calendarScope: row.calendarScope ?? "personal",
     groupId: row.groupId ?? null,
     groupName: row.groupName ?? null,

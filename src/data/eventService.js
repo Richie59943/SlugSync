@@ -167,6 +167,7 @@ export async function createEvent(eventInput) {
     location: eventInput.location || null,
     source: eventInput.source || "manual",
     visibility: normalizeEventVisibility(eventInput.visibility),
+    color: eventInput.color || null,
   };
 
   const { data, error } = await supabase
@@ -248,6 +249,7 @@ export async function updateEvent(eventId, eventInput) {
     event_end_time: eventInput.endTime || null,
     location: eventInput.location || null,
     visibility: normalizeEventVisibility(eventInput.visibility),
+    color: eventInput.color || null,
   };
 
   const { data, error } = await supabase

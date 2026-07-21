@@ -1,6 +1,7 @@
 export const EVENT_VISIBILITY = {
   PRIVATE: "private",
   COMMUNITY: "community",
+  FRIENDS: "friends",
 };
 
 export const EVENT_VISIBILITY_OPTIONS = [
@@ -10,9 +11,9 @@ export const EVENT_VISIBILITY_OPTIONS = [
     description: "Only visible on your dashboard and calendar",
   },
   {
-    value: EVENT_VISIBILITY.COMMUNITY,
-    label: "Community",
-    description: "Visible on your dashboard, calendar, and the community dashboard",
+    value: EVENT_VISIBILITY.FRIENDS,
+    label: "Visible to friends",
+    description: "Only visible to you and your friends",
   },
 ];
 

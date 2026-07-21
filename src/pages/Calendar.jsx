@@ -34,7 +34,7 @@ function toCalendarEvent(event) {
       ? `group:${event.groupId}:${event.id}`
       : `personal:${event.id}`,
     title: event.title,
-    color: cat.dot,
+    color: event.color || cat.dot,
     textColor: "#ffffff",
     classNames: isGroupEvent ? ["calendar-event-group"] : ["calendar-event-personal"],
     extendedProps: {
@@ -59,12 +59,15 @@ function toCalendarEvent(event) {
   return calendarEvent;
 }
 
-function todayString() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
+function dateString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function todayString() {
+  return dateString(new Date());
 }
 
 function Calendar({ groupId = null }) {
@@ -553,6 +556,9 @@ function Calendar({ groupId = null }) {
               <FullCalendar
                 ref={calendarRef}
                 dateClick={handleDateClick}
+                dayCellClassNames={(arg) =>
+                  dateString(arg.date) === selectedDate ? ["calendar-day-selected"] : []
+                }
                 datesSet={(arg) => setCalTitle(arg.view.title)}
                 eventClick={handleEventClick}
                 events={calendarEvents}
@@ -578,7 +584,7 @@ function Calendar({ groupId = null }) {
               return (
                 <div
                   key={event.id}
-                  style={{ borderLeft: `3px solid ${cat.dot}`, padding: "2px 0 2px 12px", marginBottom: 10 }}
+                  style={{ borderLeft: `3px solid ${event.color || cat.dot}`, padding: "2px 0 2px 12px", marginBottom: 10 }}
                 >
                   <div style={{ fontWeight: 600, fontSize: 14, fontFamily: "var(--font-display)" }}>
                     {event.title}
