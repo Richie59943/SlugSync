@@ -11,7 +11,14 @@ import {
   searchUsers,
   sendFriendRequest,
 } from "../data/friendService";
-import { createGroupWithMembers, fetchGroups } from "../data/groupService";
+import {
+  createGroupWithMembers,
+  deleteGroup,
+  fetchGroups,
+  leaveGroup,
+  transferGroupOwnership,
+  updateGroup,
+} from "../data/groupService";
 import { toBusySet } from "../data/busyGrid";
 import { initialsFromName } from "../lib/displayName";
 
@@ -124,8 +131,18 @@ function Friends() {
   const [groups, setGroups] = useState([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [groupFormOpen, setGroupFormOpen] = useState(false);
+  const [expandedGroupIds, setExpandedGroupIds] = useState(() => new Set());
+  const [groupToEdit, setGroupToEdit] = useState(null);
+  const [groupToLeave, setGroupToLeave] = useState(null);
+  const [groupToTransfer, setGroupToTransfer] = useState(null);
+  const [groupToDelete, setGroupToDelete] = useState(null);
+  const [newOwnerId, setNewOwnerId] = useState("");
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [groupFormError, setGroupFormError] = useState(null);
   const [savingGroup, setSavingGroup] = useState(false);
+  const [leavingGroupId, setLeavingGroupId] = useState(null);
+  const [transferringGroupId, setTransferringGroupId] = useState(null);
+  const [deletingGroupId, setDeletingGroupId] = useState(null);
   const [message, setMessage] = useState(null); // { type, text }
 
   useEffect(() => {
@@ -302,6 +319,125 @@ function Friends() {
     }
   }
 
+  async function handleUpdateGroup(groupInput) {
+    if (!groupToEdit) return;
+
+    setSavingGroup(true);
+    setGroupFormError(null);
+    setMessage(null);
+
+    try {
+      const updatedGroup = await updateGroup(groupToEdit.id, groupInput);
+      setGroups((currentGroups) =>
+        currentGroups.map((group) =>
+          group.id === updatedGroup.id ? updatedGroup : group,
+        ),
+      );
+      setGroupToEdit(null);
+      setMessage({ type: "success", text: `Updated "${updatedGroup.name}".` });
+    } catch (error) {
+      setGroupFormError(error.message);
+    } finally {
+      setSavingGroup(false);
+    }
+  }
+
+  async function confirmLeaveGroup() {
+    if (!groupToLeave) return;
+
+    setLeavingGroupId(groupToLeave.id);
+    setMessage(null);
+
+    try {
+      await leaveGroup(groupToLeave.id);
+      setGroups((currentGroups) =>
+        currentGroups.filter((group) => group.id !== groupToLeave.id),
+      );
+      setMessage({ type: "success", text: `Left "${groupToLeave.name}".` });
+      setGroupToLeave(null);
+
+      if (window.location.hash === `#/calendar/groups/${groupToLeave.id}`) {
+        window.location.hash = "#/calendar";
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setLeavingGroupId(null);
+    }
+  }
+
+  function handleLeaveGroupClick(group) {
+    if (group.isOwner) {
+      setGroupToTransfer(group);
+      setNewOwnerId(group.members.find((member) => member.user_id !== session?.user?.id)?.user_id ?? "");
+      setMessage(null);
+      return;
+    }
+
+    setGroupToLeave(group);
+    setMessage(null);
+  }
+
+  function toggleGroupMembers(groupId) {
+    setExpandedGroupIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (nextIds.has(groupId)) {
+        nextIds.delete(groupId);
+      } else {
+        nextIds.add(groupId);
+      }
+      return nextIds;
+    });
+  }
+
+  async function confirmTransferOwnership() {
+    if (!groupToTransfer || !newOwnerId) return;
+
+    setTransferringGroupId(groupToTransfer.id);
+    setMessage(null);
+
+    try {
+      await transferGroupOwnership(groupToTransfer.id, newOwnerId);
+      await refreshGroups();
+      setMessage({
+        type: "success",
+        text: `Transferred ownership of "${groupToTransfer.name}". You can now leave the group if you want.`,
+      });
+      setGroupToTransfer(null);
+      setNewOwnerId("");
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setTransferringGroupId(null);
+    }
+  }
+
+  async function confirmDeleteGroup() {
+    if (!groupToDelete || deleteConfirmName !== groupToDelete.name) return;
+
+    setDeletingGroupId(groupToDelete.id);
+    setMessage(null);
+
+    try {
+      await deleteGroup(groupToDelete.id);
+      setGroups((currentGroups) =>
+        currentGroups.filter((group) => group.id !== groupToDelete.id),
+      );
+      setMessage({ type: "success", text: `Deleted "${groupToDelete.name}".` });
+
+      if (window.location.hash === `#/calendar/groups/${groupToDelete.id}`) {
+        window.location.hash = "#/calendar";
+      }
+
+      setGroupToDelete(null);
+      setDeleteConfirmName("");
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    } finally {
+      setDeletingGroupId(null);
+    }
+  }
+
   if (session === undefined) {
     return (
       <main className="dashboard">
@@ -357,32 +493,115 @@ function Friends() {
           <div className="group-list">
             {groups.map((group) => (
               <article className="group-card" key={group.id}>
-                <div>
-                  <h3>{group.name}</h3>
-                  {group.description && <p>{group.description}</p>}
-                  <p className="group-card-meta">
-                    {group.members.length} member
-                    {group.members.length === 1 ? "" : "s"}
-                  </p>
-                  <a
-                    className="btn-secondary group-calendar-link"
-                    href={`#/calendar/groups/${group.id}`}
-                  >
-                    Open calendar
-                  </a>
+                <div className="group-card-main">
+                  <div>
+                    <h3>{group.name}</h3>
+                    {group.description && <p>{group.description}</p>}
+                    <p className="group-card-meta">
+                      {group.members.length} member
+                      {group.members.length === 1 ? "" : "s"}
+                      {group.currentUserRole ? ` · ${group.currentUserRole}` : ""}
+                    </p>
+                    <a
+                      className="btn-secondary group-calendar-link"
+                      href={`#/calendar/groups/${group.id}`}
+                    >
+                      Open calendar
+                    </a>
+                    <div className="group-card-actions">
+                      <button
+                        className="btn-secondary"
+                        onClick={() => toggleGroupMembers(group.id)}
+                        type="button"
+                      >
+                        {expandedGroupIds.has(group.id) ? "Hide members" : "View members"}
+                      </button>
+                      {group.canEdit && (
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            setGroupFormError(null);
+                            setGroupToEdit(group);
+                          }}
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {group.isOwner && (
+                        <>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => {
+                              setGroupToTransfer(group);
+                              setNewOwnerId(
+                                group.members.find((member) => member.user_id !== session?.user?.id)?.user_id ?? "",
+                              );
+                            }}
+                            type="button"
+                          >
+                            Transfer ownership
+                          </button>
+                          <button
+                            className="btn-danger"
+                            onClick={() => {
+                              setGroupToDelete(group);
+                              setDeleteConfirmName("");
+                            }}
+                            type="button"
+                          >
+                            Delete group
+                          </button>
+                        </>
+                      )}
+                      {(group.canLeave || group.isOwner) && (
+                        <button
+                          className="btn-danger"
+                          onClick={() => handleLeaveGroupClick(group)}
+                          type="button"
+                        >
+                          Leave Group
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="group-member-stack" aria-label="Group members">
+                    {group.members.slice(0, 5).map((member) => (
+                      <span className="friend-avatar" key={member.user_id}>
+                        {initialsFromName(displayName(member.profile))}
+                      </span>
+                    ))}
+                    {group.members.length > 5 && (
+                      <span className="group-member-count">
+                        +{group.members.length - 5}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="group-member-stack" aria-label="Group members">
-                  {group.members.slice(0, 5).map((member) => (
-                    <span className="friend-avatar" key={member.user_id}>
-                      {initialsFromName(displayName(member.profile))}
-                    </span>
-                  ))}
-                  {group.members.length > 5 && (
-                    <span className="group-member-count">
-                      +{group.members.length - 5}
-                    </span>
+                {expandedGroupIds.has(group.id) && (
+                  <div className="group-member-list">
+                    {group.members.map((member) => (
+                      <div className="group-member-row" key={member.user_id}>
+                        <div className="friend-row-main">
+                          <FriendAvatar profile={member.profile} />
+                          <div>
+                            <strong>{displayName(member.profile)}</strong>
+                            <p>
+                              {[
+                                member.profile.username && `@${member.profile.username}`,
+                                member.profile.major,
+                                member.profile.year,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || "Group member"}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="badge badge-private">{member.role}</span>
+                      </div>
+                    ))}
+                  </div>
                   )}
-                </div>
               </article>
             ))}
           </div>
@@ -645,6 +864,191 @@ function Friends() {
               }}
               onSubmit={handleCreateGroup}
             />
+          </div>
+        </div>
+      )}
+
+      {groupToEdit && (
+        <div
+          aria-labelledby="edit-group-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog event-form-dialog">
+            <p className="eyebrow">Group settings</p>
+            <h2 id="edit-group-title">Edit Group</h2>
+            <GroupForm
+              error={groupFormError}
+              initialData={{
+                name: groupToEdit.name,
+                description: groupToEdit.description ?? "",
+              }}
+              isLoading={savingGroup}
+              mode="edit"
+              onCancel={() => {
+                setGroupToEdit(null);
+                setGroupFormError(null);
+              }}
+              onSubmit={handleUpdateGroup}
+            />
+          </div>
+        </div>
+      )}
+
+      {groupToLeave && (
+        <div
+          aria-labelledby="leave-group-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <p className="eyebrow">Leave group</p>
+            <h2 id="leave-group-title">Leave "{groupToLeave.name}"?</h2>
+            <p>
+              You will no longer have access to this group's calendar or shared
+              events.
+            </p>
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                disabled={leavingGroupId === groupToLeave.id}
+                onClick={() => setGroupToLeave(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                disabled={leavingGroupId === groupToLeave.id}
+                onClick={confirmLeaveGroup}
+                type="button"
+              >
+                {leavingGroupId === groupToLeave.id ? "Leaving..." : "Leave Group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {groupToTransfer && (
+        <div
+          aria-labelledby="transfer-group-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <p className="eyebrow">Transfer ownership</p>
+            <h2 id="transfer-group-title">{groupToTransfer.name}</h2>
+            <p>
+              Choose another group member to become the owner. After transfer,
+              you can leave the group as a regular member.
+            </p>
+            {groupToTransfer.members.filter((member) => member.user_id !== session?.user?.id).length === 0 ? (
+              <p className="event-message event-message-error">
+                Add another member before transferring ownership.
+              </p>
+            ) : (
+              <label className="group-form-label">
+                New owner
+                <select
+                  className="group-form-input"
+                  disabled={transferringGroupId === groupToTransfer.id}
+                  onChange={(event) => setNewOwnerId(event.target.value)}
+                  value={newOwnerId}
+                >
+                  {groupToTransfer.members
+                    .filter((member) => member.user_id !== session?.user?.id)
+                    .map((member) => (
+                      <option key={member.user_id} value={member.user_id}>
+                        {displayName(member.profile)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                disabled={transferringGroupId === groupToTransfer.id}
+                onClick={() => {
+                  setGroupToTransfer(null);
+                  setNewOwnerId("");
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                disabled={
+                  !newOwnerId ||
+                  transferringGroupId === groupToTransfer.id ||
+                  groupToTransfer.members.filter((member) => member.user_id !== session?.user?.id).length === 0
+                }
+                onClick={confirmTransferOwnership}
+                type="button"
+              >
+                {transferringGroupId === groupToTransfer.id
+                  ? "Transferring..."
+                  : "Transfer ownership"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {groupToDelete && (
+        <div
+          aria-labelledby="delete-group-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <div className="confirm-dialog">
+            <p className="eyebrow">Delete group</p>
+            <h2 id="delete-group-title">{groupToDelete.name}</h2>
+            <p>
+              This permanently deletes the group, its memberships, and group
+              calendar sharing links. Personal events are not deleted.
+            </p>
+            <label className="group-form-label">
+              Type "{groupToDelete.name}" to confirm
+              <input
+                className="group-form-input"
+                disabled={deletingGroupId === groupToDelete.id}
+                onChange={(event) => setDeleteConfirmName(event.target.value)}
+                value={deleteConfirmName}
+              />
+            </label>
+            <div className="confirm-actions">
+              <button
+                className="btn-secondary"
+                disabled={deletingGroupId === groupToDelete.id}
+                onClick={() => {
+                  setGroupToDelete(null);
+                  setDeleteConfirmName("");
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                disabled={
+                  deletingGroupId === groupToDelete.id ||
+                  deleteConfirmName !== groupToDelete.name
+                }
+                onClick={confirmDeleteGroup}
+                type="button"
+              >
+                {deletingGroupId === groupToDelete.id
+                  ? "Deleting..."
+                  : "Delete group permanently"}
+              </button>
+            </div>
           </div>
         </div>
       )}

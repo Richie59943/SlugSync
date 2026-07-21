@@ -976,7 +976,8 @@ select:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.visibility-fieldset {
+.visibility-fieldset,
+.group-share-fieldset {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   display: grid;
@@ -985,11 +986,20 @@ select:disabled {
   padding: 14px;
 }
 
-.visibility-fieldset legend {
+.visibility-fieldset legend,
+.group-share-fieldset legend {
   color: var(--color-text);
   font-size: 0.88rem;
   font-weight: 800;
   padding: 0 4px;
+}
+
+.group-share-fieldset p {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 0;
 }
 
 .visibility-options {
@@ -997,7 +1007,14 @@ select:disabled {
   gap: 10px;
 }
 
-.event-form .visibility-option {
+.visibility-options,
+.group-share-options {
+  display: grid;
+  gap: 10px;
+}
+
+.event-form .visibility-option,
+.event-form .group-share-option {
   align-items: flex-start;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1008,12 +1025,14 @@ select:disabled {
   padding: 12px;
 }
 
-.event-form .visibility-option:has(input:checked) {
+.event-form .visibility-option:has(input:checked),
+.event-form .group-share-option:has(input:checked) {
   background: var(--color-accent-soft);
   border-color: var(--color-accent);
 }
 
-.visibility-option input {
+.visibility-option input,
+.group-share-option input {
   margin-top: 3px;
   width: auto;
 }
@@ -1021,6 +1040,12 @@ select:disabled {
 .visibility-option span {
   display: grid;
   gap: 2px;
+}
+
+.group-share-option span {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .visibility-option small {
@@ -3188,12 +3213,18 @@ select:disabled {
 }
 
 .group-card {
-  align-items: center;
+  align-items: stretch;
   border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.group-card-main {
+  align-items: center;
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  padding: 14px 0;
 }
 
 .group-card:first-of-type {
@@ -3222,10 +3253,37 @@ select:disabled {
   width: auto;
 }
 
+.group-card-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.group-card-actions .btn-secondary,
+.group-card-actions .btn-danger {
+  width: auto;
+}
+
 .group-member-stack {
   align-items: center;
   display: flex;
   flex-shrink: 0;
+}
+
+.group-member-list {
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.group-member-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
 }
 
 .group-member-stack .friend-avatar {

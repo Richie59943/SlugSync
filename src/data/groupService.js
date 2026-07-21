@@ -22,6 +22,22 @@ function attachProfilesToMemberships(memberships, profilesById) {
   }));
 }
 
+function decorateGroup(group, memberships, currentUserId) {
+  const currentUserMembership =
+    memberships.find((membership) => membership.user_id === currentUserId) ?? null;
+  const currentUserRole = currentUserMembership?.role ?? null;
+
+  return {
+    ...group,
+    members: memberships,
+    currentUserMembership,
+    currentUserRole,
+    canEdit: currentUserRole === "owner" || currentUserRole === "admin",
+    canLeave: currentUserRole === "admin" || currentUserRole === "member",
+    isOwner: currentUserRole === "owner",
+  };
+}
+
 async function fetchProfilesById(userIds) {
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
   if (uniqueIds.length === 0) return {};
@@ -86,8 +102,7 @@ export async function fetchGroups() {
 
   return {
     groups: (data ?? []).map((group) => ({
-      ...group,
-      members: membershipsByGroup[group.id] ?? [],
+      ...decorateGroup(group, membershipsByGroup[group.id] ?? [], user.id),
     })),
     user,
   };
@@ -147,11 +162,148 @@ export async function createGroupWithMembers({ name, description, memberIds }) {
   const members = membershipsByGroup[group.id] ?? [];
 
   return {
-    ...group,
-    members,
+    ...decorateGroup(group, members, user.id),
     memberSummary:
       members.length > 0
         ? members.map((member) => profileDisplayName(member.profile)).join(", ")
         : "Just you for now",
   };
+}
+
+export async function updateGroup(groupId, { name, description }) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to edit a group.");
+  }
+
+  if (!groupId) {
+    throw new Error("Missing group id. The group could not be updated.");
+  }
+
+  const trimmedName = name?.trim();
+  if (!trimmedName) {
+    throw new Error("Group name is required.");
+  }
+
+  const { data: group, error } = await supabase
+    .from("groups")
+    .update({
+      name: trimmedName,
+      description: description?.trim() || null,
+    })
+    .eq("id", groupId)
+    .select("id, name, description, created_by, created_at, updated_at")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Unable to update this group.");
+  }
+
+  if (!group) {
+    throw new Error("This group was not updated because you do not have permission.");
+  }
+
+  const membershipsByGroup = await fetchGroupMemberships([group.id]);
+  return decorateGroup(group, membershipsByGroup[group.id] ?? [], user.id);
+}
+
+export async function leaveGroup(groupId) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to leave a group.");
+  }
+
+  if (!groupId) {
+    throw new Error("Missing group id. The group could not be left.");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("group_members")
+    .select("id, role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(membershipError.message || "Unable to verify your group membership.");
+  }
+
+  if (!membership) {
+    throw new Error("You are not a member of this group.");
+  }
+
+  if (membership.role === "owner") {
+    throw new Error("You must transfer ownership or delete the group before leaving.");
+  }
+
+  const { data, error } = await supabase
+    .from("group_members")
+    .delete()
+    .eq("id", membership.id)
+    .eq("user_id", user.id)
+    .neq("role", "owner")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Unable to leave this group.");
+  }
+
+  if (!data) {
+    throw new Error("The group was not left because your membership could not be removed.");
+  }
+
+  return data;
+}
+
+export async function transferGroupOwnership(groupId, newOwnerId) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to transfer ownership.");
+  }
+
+  if (!groupId || !newOwnerId) {
+    throw new Error("Choose a group member to become the new owner.");
+  }
+
+  const { error } = await supabase.rpc("transfer_group_ownership", {
+    target_group_id: groupId,
+    new_owner_id: newOwnerId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Unable to transfer group ownership.");
+  }
+}
+
+export async function deleteGroup(groupId) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to delete a group.");
+  }
+
+  if (!groupId) {
+    throw new Error("Missing group id. The group could not be deleted.");
+  }
+
+  const { data, error } = await supabase
+    .from("groups")
+    .delete()
+    .eq("id", groupId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Unable to delete this group.");
+  }
+
+  if (!data) {
+    throw new Error("This group was not deleted because you do not have permission.");
+  }
+
+  return data;
 }

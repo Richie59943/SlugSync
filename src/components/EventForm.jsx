@@ -14,6 +14,7 @@ const emptyForm = {
   location: "",
   visibility: EVENT_VISIBILITY.PRIVATE,
   color: "",
+  groupIds: [],
 };
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -132,6 +133,7 @@ function normalizeFormData(data) {
     location: data?.location ?? "",
     visibility: normalizeEventVisibility(data?.visibility),
     color: data?.color ?? "",
+    groupIds: data?.groupIds ?? [],
   };
 }
 
@@ -165,6 +167,7 @@ function EventForm({
   isLoading = false,
   error = null,
   missingFields = [],
+  groups = [],
   children = null,
 }) {
   const [form, setForm] = useState(() => normalizeFormData(initialData));
@@ -195,6 +198,18 @@ function EventForm({
         setErrors((currentErrors) => ({ ...currentErrors, [field]: null }));
       }
     };
+  }
+
+  function handleGroupToggle(groupId) {
+    setForm((currentForm) => {
+      const selectedIds = new Set(currentForm.groupIds ?? []);
+      if (selectedIds.has(groupId)) {
+        selectedIds.delete(groupId);
+      } else {
+        selectedIds.add(groupId);
+      }
+      return { ...currentForm, groupIds: [...selectedIds] };
+    });
   }
 
   function handleSubmit(event) {
@@ -316,6 +331,31 @@ function EventForm({
             />
           </label>
         </div>
+      <fieldset className="group-share-fieldset">
+        <legend>Share with groups</legend>
+        <p>
+          Leave all groups unselected to keep this event on your personal
+          calendar only.
+        </p>
+        {groups.length === 0 ? (
+          <p className="empty-state" style={{ textAlign: "left", margin: 0 }}>
+            You are not in any groups yet.
+          </p>
+        ) : (
+          <div className="group-share-options">
+            {groups.map((group) => (
+              <label className="group-share-option" key={group.id}>
+                <input
+                  checked={(form.groupIds ?? []).includes(group.id)}
+                  disabled={isLoading}
+                  onChange={() => handleGroupToggle(group.id)}
+                  type="checkbox"
+                />
+                <span>{group.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </fieldset>
       {children}
       {error && <p className="event-message event-message-error">{error}</p>}
