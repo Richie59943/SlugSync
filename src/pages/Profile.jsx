@@ -4,6 +4,7 @@ import ProfileHeader from "../components/profile/ProfileHeader";
 import TagList from "../components/profile/TagList";
 import PrivacySettings from "../components/profile/PrivacySettings";
 import ProfileCompleteness from "../components/profile/ProfileCompleteness";
+import InterestPicker from "../components/profile/InterestPicker";
 import { useAuth } from "../context/AuthContext";
 import {
   fetchProfile,
@@ -46,7 +47,7 @@ function normalizeProfile(row, userId) {
 function toFormState(profile) {
   return {
     ...profile,
-    interests: tagsToInput(profile.interests),
+    interests: toTagArray(profile.interests),
     clubs: tagsToInput(profile.clubs),
     classes: tagsToInput(profile.classes),
   };
@@ -192,6 +193,10 @@ export default function Profile() {
 
   function handleField(key) {
     return (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  }
+
+  function handleInterestsChange(nextInterests) {
+    setForm((prev) => ({ ...prev, interests: nextInterests }));
   }
 
   function handlePrivacyChange(key, value) {
@@ -560,19 +565,10 @@ export default function Profile() {
                 <label className="profile-label">
                   Interests
                   <span className="profile-hint">
-                    Comma-separated, e.g. Hiking, Photography, Board games
+                    Search and select from the preset list.
                   </span>
-                  <input
-                    className="profile-input"
-                    type="text"
-                    placeholder="Hiking, Photography, Board games"
-                    value={form.interests}
-                    onChange={handleField("interests")}
-                  />
                 </label>
-                {toTagArray(form.interests).length > 0 && (
-                  <TagList tags={toTagArray(form.interests)} emptyText="" />
-                )}
+                <InterestPicker value={form.interests} onChange={handleInterestsChange} />
 
                 <label className="profile-label">
                   Clubs
